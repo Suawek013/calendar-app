@@ -3,6 +3,7 @@
 
 import React from 'react';
 import { Icon, Segmented, hexA } from './components.jsx';
+import { supabase } from './supabase.js';
 
 function ProfileView({ accent, me, partner, partnerEnabled, setPartnerEnabled, onViewPartner,
   clock, setClock, weekStart, setWeekStart }) {
@@ -37,7 +38,9 @@ function ProfileView({ accent, me, partner, partnerEnabled, setPartnerEnabled, o
             <div className="acct-row"><span>Plan</span><b>Free</b></div>
             <div className="acct-row"><span>Member since</span><b>Jan 2026</b></div>
             <div className="acct-row"><span>Time zone</span><b>Europe / Warsaw</b></div>
-            <button className="logout-btn"><Icon name="logout" size={15} /> Sign out</button>
+            <button className="logout-btn" onClick={async () => await supabase.auth.signOut()}>
+              <Icon name="logout" size={15} /> Sign out
+            </button>
           </section>
         </div>
       </div>

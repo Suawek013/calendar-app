@@ -3,7 +3,9 @@ import React from 'react';
 import { Icon } from './components.jsx';
 import { TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, CUSTOM_BLOCKS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12 } from './data.jsx';
 import { supabase } from './supabase.js';
+import { supabase } from './supabase.js';
 import { GOALS_SEED, GOAL_YEAR } from './goals-data.jsx';
+import LoginView from './login.jsx';
 import DashboardView from './dashboard.jsx';
 import CalendarView from './calendar.jsx';
 import GoalDetail from './goal-detail.jsx';
@@ -54,9 +56,31 @@ function App() {
   const [goalId, setGoalId] = React.useState(null);      // open detail
   const [editGoal, setEditGoal] = React.useState(null);  // {goal, isNew}
   const [dataLoaded, setDataLoaded] = React.useState(false);
+  const [session, setSession] = React.useState(null);
+  const [isInitializingAuth, setIsInitializingAuth] = React.useState(true);
 
+  // Nasłuchiwanie na zmiany sesji (logowanie, wylogowanie)
   React.useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setIsInitializingAuth(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Inicjalizacja danych z bazy uruchamiana tylko, gdy jest dostępna sesja
+  React.useEffect(() => {
+    if (!session) return;
+    
     async function init() {
+      setDataLoaded(false);
       // Pobieramy nawyki
       const { data: habs } = await supabase.from('habits').select('*');
       if (habs) {
@@ -102,7 +126,7 @@ function App() {
       bump();
     }
     init();
-  }, []);
+  }, [session]);
   const [mark, setMark] = React.useState(false);
   const [period, setPeriod] = React.useState("week");
   const [clipboard, setClipboard] = React.useState(null);  // copied block payload
@@ -368,8 +392,20 @@ function App() {
     { id: "profile", icon: "users", label: "Sharing" },
   ];
 
+  if (isInitializingAuth) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', background: 'var(--bg)' }}>
+        Loading session...
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <LoginView accent={accent} />;
+  }
+
   return !dataLoaded ? (
-    <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
+    <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', background: 'var(--bg)' }}>
       Ładowanie danych z Supabase...
     </div>
   ) : (
