@@ -226,18 +226,37 @@ function App() {
   const goCalendar = (day) => { setView("calendar"); };
   const viewPartner = () => { setActiveCal("maja"); setView("calendar"); };
 
-  // habit form save (mutates HABITS for live recolor in a prototype)
-  const onSaveHabit = (h) => {
-    if (editHabit.isNew) { HABITS.push({ ...h, id: "h" + Date.now() }); }
-    else {
+  const onSaveHabit = async (h) => {
+    let finalH;
+    if (editHabit.isNew) { 
+      finalH = { ...h, id: "h" + Date.now() };
+      HABITS.push(finalH); 
+    } else {
+      finalH = { ...h };
       const orig = habitById(h.id);
-      Object.assign(orig, h);
+      if (orig) Object.assign(orig, h);
     }
+    
+    // Zapis do Supabase
+    await supabase.from('habits').upsert({
+      id: finalH.id,
+      name: finalH.name,
+      icon: finalH.icon,
+      color: finalH.color,
+      category: finalH.category,
+      tracked: finalH.tracked,
+      schedule: JSON.stringify(finalH.schedule)
+    });
+    
     setEditHabit(null); bump();
   };
-  const onDeleteHabit = (id) => {
+  const onDeleteHabit = async (id) => {
     const ix = HABITS.findIndex(x => x.id === id);
     if (ix >= 0) HABITS.splice(ix, 1);
+    
+    // Usunięcie z Supabase
+    await supabase.from('habits').delete().eq('id', id);
+    
     setEditHabit(null); bump();
   };
 
