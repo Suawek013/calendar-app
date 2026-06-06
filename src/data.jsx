@@ -20,6 +20,7 @@ const CATEGORIES = ["Work", "Health", "Personal", "Learning", "Social", "Side pr
 
 export const HABITS = []; // Będzie zasilane z bazy danych
 export const HABIT_LOGS = []; // Będzie zasilane z bazy danych
+export const CUSTOM_BLOCKS = []; // Dodano: przechowuje zmodyfikowane/niestandardowe bloki
 
 const habitById = (id) => HABITS.find(h => h.id === id);
 
@@ -80,34 +81,69 @@ function weekDates(offset) {
 let _uid = 1;
 export function generateWeek(offset) {
   const blocks = [];
+  const dts = [];
+  
+  // Cache the exact date strings for the 7 days of this week (Mon-Sun)
+  for (let i = 0; i < 7; i++) {
+    const dt = new Date(BASE_MONDAY);
+    dt.setDate(BASE_MONDAY.getDate() + offset * 7 + i);
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    dts.push(`${y}-${m}-${d}`);
+  }
+
   HABITS.forEach(h => {
     (h.schedule || []).forEach(slot => {
       (slot.days || []).forEach(day => {
-        // Obliczenie prawdziwej daty dla tego bloku
-        const dt = new Date(BASE_MONDAY);
-        dt.setDate(BASE_MONDAY.getDate() + offset * 7 + day);
-        const y = dt.getFullYear();
-        const m = String(dt.getMonth() + 1).padStart(2, '0');
-        const d = String(dt.getDate()).padStart(2, '0');
-        const dateStr = `${y}-${m}-${d}`;
+        const dateStr = dts[day];
         
-        // Szukamy override w bazie
+        // Deterministyczne ID, aby móc powiązać override z custom_blocks
+        const blockId = `t_${h.id}_${dateStr}_${slot.start}`;
+        
+        // Jeśli ten blok został zmodyfikowany lub przesunięty, pomijamy wygenerowanie oryginału
+        if (CUSTOM_BLOCKS.some(cb => cb.id === blockId)) return;
+
         const log = HABIT_LOGS.find(l => l.habit_id === h.id && l.date === dateStr);
         const status = log ? log.status : "planned";
 
         blocks.push({
-          id: "b" + (_uid++),
+          id: blockId,
           habitId: h.id,
           label: h.name,
           sublabel: SUBLABELS[h.id] || "",
           day, start: slot.start, dur: slot.dur,
           status: status,
-          dateStr: dateStr, // zachowujemy do update'ów
+          dateStr: dateStr,
           template: true,
         });
       });
     });
   });
+
+  // Dodajemy bloki, które zostały zmodyfikowane lub dodane ręcznie w tym tygodniu
+  CUSTOM_BLOCKS.forEach(cb => {
+    const dayIndex = dts.indexOf(cb.date_str);
+    // Renderujemy tylko te, które wypadają w aktualnie otwartym tygodniu i nie są usunięte
+    if (dayIndex >= 0 && !cb.deleted) {
+      const h = habitById(cb.habit_id);
+      if (!h) return; // Jeśli nawyk już nie istnieje, pomijamy sierotę
+
+      blocks.push({
+        id: cb.id,
+        habitId: cb.habit_id,
+        label: cb.label || h.name,
+        sublabel: cb.sublabel || SUBLABELS[h.id] || "",
+        day: dayIndex,
+        start: cb.start_min,
+        dur: cb.dur,
+        status: cb.status,
+        dateStr: cb.date_str,
+        template: false
+      });
+    }
+  });
+
   return blocks;
 }
 

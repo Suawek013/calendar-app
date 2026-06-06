@@ -1,7 +1,7 @@
 // App.jsx — shell, navigation, state, modals, tweaks
 import React from 'react';
 import { Icon } from './components.jsx';
-import { TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12 } from './data.jsx';
+import { TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, CUSTOM_BLOCKS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12 } from './data.jsx';
 import { supabase } from './supabase.js';
 import { GOALS_SEED, GOAL_YEAR } from './goals-data.jsx';
 import DashboardView from './dashboard.jsx';
@@ -73,6 +73,13 @@ function App() {
       if (hlogs) {
         HABIT_LOGS.length = 0;
         HABIT_LOGS.push(...hlogs);
+      }
+
+      // Pobieramy manualne edycje bloków
+      const { data: cblocks } = await supabase.from('custom_blocks').select('*');
+      if (cblocks) {
+        CUSTOM_BLOCKS.length = 0;
+        CUSTOM_BLOCKS.push(...cblocks);
       }
       
       // Pobieramy cele (opcjonalnie z zagnieżdżeniami, jeśli tabela jest gotowa)
@@ -162,40 +169,91 @@ function App() {
 
   const setBlocks = (off, fn) => setWeeks(w => ({ ...w, [off]: fn(w[off] || generateWeek(off)) }));
 
+  const syncCustomBlock = async (b, patch = {}, isDeleted = false) => {
+    const dts = weekDates(weekOffset).map(dt => {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    });
+
+    const targetDay = patch.day !== undefined ? patch.day : b.day;
+    const targetStart = patch.start !== undefined ? patch.start : b.start;
+    const targetDur = patch.dur !== undefined ? patch.dur : b.dur;
+    const targetDateStr = dts[targetDay];
+    const targetStatus = patch.status !== undefined ? patch.status : b.status;
+    const targetLabel = patch.label !== undefined ? patch.label : b.label;
+    const targetSublabel = patch.sublabel !== undefined ? patch.sublabel : b.sublabel;
+
+    const cb = {
+      id: b.id,
+      habit_id: b.habitId,
+      date_str: targetDateStr,
+      start_min: targetStart,
+      dur: targetDur,
+      status: targetStatus,
+      label: targetLabel,
+      sublabel: targetSublabel,
+      deleted: isDeleted
+    };
+
+    // Update global cache
+    const exist = CUSTOM_BLOCKS.find(x => x.id === b.id);
+    if (exist) Object.assign(exist, cb);
+    else CUSTOM_BLOCKS.push(cb);
+
+    // Update Supabase
+    await supabase.from('custom_blocks').upsert(cb);
+  };
+
   const onUpdate = async (id, patch) => {
-    setBlocks(weekOffset, bs => bs.map(b => b.id === id ? { ...b, ...patch } : b));
+    const b = (weeks[weekOffset] || blocks).find(x => x.id === id);
+    if (!b) return;
+
+    setBlocks(weekOffset, bs => bs.map(x => x.id === id ? { ...x, ...patch } : x));
     
-    // Zapis do Supabase jeśli zmieniamy status bloku
-    if (patch.status) {
-      const b = (weeks[weekOffset] || blocks).find(x => x.id === id);
-      if (b && b.habitId && b.dateStr) {
-        // Aktualizacja lokalnego cache'u
+    // Jeśli zmieniamy status, odnotowujemy to w habit_logs (statystyki streak)
+    if (patch.status && b.habitId && b.dateStr) {
         const exist = HABIT_LOGS.find(l => l.habit_id === b.habitId && l.date === b.dateStr);
         if (exist) exist.status = patch.status;
         else HABIT_LOGS.push({ habit_id: b.habitId, date: b.dateStr, status: patch.status });
         
-        // Wysłanie do bazy
         await supabase.from('habit_logs').upsert({
           habit_id: b.habitId,
           date: b.dateStr,
           status: patch.status
         }, { onConflict: 'habit_id, date' });
-        bump(); // Odśwież np. statystyki roczne
-      }
+        bump();
+    }
+
+    // Zapisujemy custom block, jeśli to zmiana kształtu, etykiety, ALBO jeśli blok był już "customowy"
+    const isGeometryChange = patch.day !== undefined || patch.start !== undefined || patch.dur !== undefined || patch.label !== undefined || patch.sublabel !== undefined;
+    if (isGeometryChange || !b.template) {
+      await syncCustomBlock(b, patch);
     }
   };
-  const onDelete = (id) => { setBlocks(weekOffset, bs => bs.filter(b => b.id !== id)); setEditing(null); };
-  const onReset = () => setWeeks(w => ({ ...w, [weekOffset]: generateWeek(weekOffset) }));
 
-  // create a full block (used by paste / duplicate); keeps label, sublabel, dur, habit
-  const onCreateBlock = (off, b) => {
+  const onDelete = async (id) => { 
+    const b = (weeks[weekOffset] || blocks).find(x => x.id === id);
+    setBlocks(weekOffset, bs => bs.filter(x => x.id !== id)); 
+    setEditing(null); 
+    if (b) await syncCustomBlock(b, {}, true); 
+  };
+
+  const onReset = () => {
+    // Reset przywraca wygenerowany tydzień, ale ignoruje Custom Blocks - wymaga usunięcia ich z bazy w tej funkcjonalności, zrobimy to później
+    setWeeks(w => ({ ...w, [weekOffset]: generateWeek(weekOffset) }));
+  };
+
+  const onCreateBlock = async (off, b) => {
     const nb = { ...b, id: "n" + Date.now() + Math.random().toString(36).slice(2, 5),
       status: b.status || "planned", template: false };
     setBlocks(off, bs => [...bs, nb]);
+    await syncCustomBlock(nb, nb); // Save to DB!
     return nb;
   };
 
-  const onAdd = (off, info) => {
+  const onAdd = async (off, info) => {
     if (HABITS.length === 0) {
       alert("Musisz najpierw dodać jakikolwiek nawyk w zakładce Habits!");
       return;
@@ -206,15 +264,22 @@ function App() {
       const nb = { id: "n" + Date.now(), habitId: info.habitId, label: h.name,
         sublabel: "", day: info.day, start: info.start, dur: 60, status: "planned", template: false };
       setBlocks(off, bs => [...bs, nb]);
+      await syncCustomBlock(nb, nb); // Zapis do DB!
       return;
     }
+    const day = info && info.day !== undefined ? info.day : TODAY_INDEX;
+    const start = info && info.start !== undefined ? info.start : 12*60;
     setEditing({ block: { id: "n" + Date.now(), habitId: HABITS[0].id, label: "", sublabel: "",
-      day: TODAY_INDEX, start: 12*60, dur: 60, status: "planned", template: false, repeat: "this" }, isNew: true });
+      day, start, dur: 60, status: "planned", template: false, repeat: "this" }, isNew: true });
   };
 
-  const onSaveBlock = (b) => {
-    if (editing.isNew) setBlocks(weekOffset, bs => [...bs, b]);
-    else onUpdate(b.id, b);
+  const onSaveBlock = async (b) => {
+    if (editing.isNew) {
+      setBlocks(weekOffset, bs => [...bs, b]);
+      await syncCustomBlock(b, b);
+    } else {
+      onUpdate(b.id, b);
+    }
     setEditing(null);
   };
 
