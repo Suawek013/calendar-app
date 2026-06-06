@@ -3,7 +3,6 @@ import React from 'react';
 import { Icon } from './components.jsx';
 import { TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, CUSTOM_BLOCKS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12 } from './data.jsx';
 import { supabase } from './supabase.js';
-import { supabase } from './supabase.js';
 import { GOALS_SEED, GOAL_YEAR } from './goals-data.jsx';
 import LoginView from './login.jsx';
 import DashboardView from './dashboard.jsx';
