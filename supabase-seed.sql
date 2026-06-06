@@ -1,0 +1,61 @@
+-- SEED DATA FOR SUPABASE
+
+-- HABITS
+INSERT INTO habits (id, name, icon, color, category, tracked, consistency, schedule) VALUES ('uni', 'University', '🎓', '#5b8def', 'Learning', true, 0.82, '[{"days":[0,2],"start":600,"dur":180},{"days":[4],"start":840,"dur":120}]');
+INSERT INTO habits (id, name, icon, color, category, tracked, consistency, schedule) VALUES ('work', 'Internship', '💼', '#7d8aa0', 'Work', true, 0.95, '[{"days":[1,3],"start":540,"dur":360}]');
+INSERT INTO habits (id, name, icon, color, category, tracked, consistency, schedule) VALUES ('gym', 'Gym', '💪', '#36c5cf', 'Health', true, 0.7, '[{"days":[1,3],"start":990,"dur":90}]');
+INSERT INTO habits (id, name, icon, color, category, tracked, consistency, schedule) VALUES ('side', 'Side Business', '🔥', '#f08a3c', 'Side project', true, 0.6, '[{"days":[0,2],"start":1140,"dur":120},{"days":[5],"start":660,"dur":180}]');
+INSERT INTO habits (id, name, icon, color, category, tracked, consistency, schedule) VALUES ('read', 'Reading', '📚', '#a87ff0', 'Personal', true, 0.88, '[{"days":[0,1,2,3,4,5,6],"start":1320,"dur":30}]');
+INSERT INTO habits (id, name, icon, color, category, tracked, consistency, schedule) VALUES ('couple', 'Couple time', '❤️', '#ef7fc4', 'Social', true, 0.9, '[{"days":[4],"start":1140,"dur":180},{"days":[6],"start":1020,"dur":180}]');
+INSERT INTO habits (id, name, icon, color, category, tracked, consistency, schedule) VALUES ('game', 'Gaming', '🎮', '#7c7ff0', 'Personal', false, 0.5, '[{"days":[5],"start":1260,"dur":120}]');
+
+-- GOALS
+INSERT INTO goals (id, name, icon, area_id, type, target, unit, start_value, current, deadline, weekly_target, habit_id, notes, completed_date) VALUES ('g_read', 'Read 50 books', '📚', 'learning', 'quant', 50, 'books', 0, 18, '2026-12-31', NULL, NULL, 'Fiction counts. Audiobooks count if finished.', NULL);
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_read', 1, 'Atomic Habits', '2026-05-28', '📖');
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_read', 1, 'The Three-Body Problem', '2026-05-14', '📖');
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_read', 1, 'Project Hail Mary', '2026-05-02', '📖');
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_read', 1, 'Klara and the Sun', '2026-04-21', '📖');
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_read', 1, 'Educated', '2026-04-09', '📖');
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_read', 1, 'Dune', '2026-03-30', '📖');
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_read', 0, 4);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_read', 1, 7);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_read', 2, 10);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_read', 3, 14);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_read', 4, 17);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_read', 5, 18);
+INSERT INTO goals (id, name, icon, area_id, type, target, unit, start_value, current, deadline, weekly_target, habit_id, notes, completed_date) VALUES ('g_run', 'Run 500 km', '🏃', 'health', 'quant', 500, 'km', 0, 156, '2026-12-31', NULL, NULL, NULL, NULL);
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_run', 8, 'River loop', '2026-06-02', '🏃');
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_run', 5, 'Easy recovery', '2026-05-30', '🏃');
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_run', 12, 'Long run — felt strong', '2026-05-25', '🏃');
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_run', 6, 'Intervals', '2026-05-21', '🏃');
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_run', 0, 22);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_run', 1, 51);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_run', 2, 78);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_run', 3, 104);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_run', 4, 138);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_run', 5, 156);
+INSERT INTO goals (id, name, icon, area_id, type, target, unit, start_value, current, deadline, weekly_target, habit_id, notes, completed_date) VALUES ('g_save', 'Save 100,000 zł', '🏦', 'finance', 'quant', 100000, 'zł', 0, 58000, '2026-12-31', NULL, NULL, 'Auto-transfer on payday + freelance overflow.', NULL);
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_save', 8000, 'Freelance invoice', '2026-05-31', '💸');
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_save', 5500, 'Payday auto-transfer', '2026-05-28', '💸');
+INSERT INTO goal_logs (goal_id, value, note, date, icon) VALUES ('g_save', 2500, 'Sold old gear', '2026-05-12', '💸');
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_save', 0, 9000);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_save', 1, 19000);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_save', 2, 31000);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_save', 3, 42000);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_save', 4, 50000);
+INSERT INTO goal_series (goal_id, month, value) VALUES ('g_save', 5, 58000);
+INSERT INTO goals (id, name, icon, area_id, type, target, unit, start_value, current, deadline, weekly_target, habit_id, notes, completed_date) VALUES ('g_course', 'Launch online course', '🚀', 'business', 'milestone', NULL, NULL, 0, 0, '2026-07-22', NULL, NULL, 'Topic: shipping side projects without burning out.', NULL);
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('s1', 'g_course', 'Outline 6 modules', '2026-04-15', true, NULL);
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('s2', 'g_course', 'Record module 1–3', '2026-05-20', true, NULL);
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('s3', 'g_course', 'Build landing page', '2026-05-30', true, 'Live, collecting emails');
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('s4', 'g_course', 'Record module 4–6', '2026-06-25', true, NULL);
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('s5', 'g_course', 'Edit & caption all videos', NULL, false, NULL);
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('s6', 'g_course', 'Set up checkout + pricing', NULL, false, NULL);
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('s7', 'g_course', 'Launch email sequence', '2026-07-20', false, NULL);
+INSERT INTO goals (id, name, icon, area_id, type, target, unit, start_value, current, deadline, weekly_target, habit_id, notes, completed_date) VALUES ('g_gym', 'Work out 4× per week', '💪', 'health', 'habit', NULL, NULL, 0, 0, '2026-12-31', 4, 'gym', NULL, NULL);
+INSERT INTO goals (id, name, icon, area_id, type, target, unit, start_value, current, deadline, weekly_target, habit_id, notes, completed_date) VALUES ('g_date', 'Weekly date night', '🌙', 'relation', 'habit', NULL, NULL, 0, 0, '2026-12-31', 1, 'couple', 'Friday nights, phones away.', NULL);
+INSERT INTO goals (id, name, icon, area_id, type, target, unit, start_value, current, deadline, weekly_target, habit_id, notes, completed_date) VALUES ('g_fund', 'Build emergency fund', '🛟', 'finance', 'milestone', NULL, NULL, 0, 0, '2026-05-31', NULL, NULL, 'Three months of expenses, parked in a separate account.', '2026-05-18');
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('f1', 'g_fund', 'Calculate 3-month runway', '2026-02-10', true, NULL);
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('f2', 'g_fund', 'Open separate savings account', '2026-02-20', true, NULL);
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('f3', 'g_fund', 'Automate monthly transfer', '2026-03-01', true, NULL);
+INSERT INTO goal_steps (id, goal_id, name, due, done, note) VALUES ('f4', 'g_fund', 'Reach full target', '2026-05-31', true, NULL);

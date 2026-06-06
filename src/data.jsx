@@ -18,31 +18,8 @@ const HABIT_PALETTE = [
 
 const CATEGORIES = ["Work", "Health", "Personal", "Learning", "Social", "Side project"];
 
-// Each habit: id, name, icon, color, category, tracked (dashboard), schedule[]
-// schedule entry: { days:[0..6], start: minutes, dur: minutes }
-const HABITS = [
-  { id: "uni",   name: "University",    icon: "🎓", color: "#5b8def", category: "Learning",
-    consistency: 0.82,
-    schedule: [ { days:[0,2], start: 10*60, dur: 180 }, { days:[4], start: 14*60, dur: 120 } ] },
-  { id: "work",  name: "Internship",    icon: "💼", color: "#7d8aa0", category: "Work",
-    consistency: 0.95,
-    schedule: [ { days:[1,3], start: 9*60, dur: 360 } ] },
-  { id: "gym",   name: "Gym",           icon: "💪", color: "#36c5cf", category: "Health",
-    consistency: 0.7,
-    schedule: [ { days:[1,3], start: 16*60+30, dur: 90 } ] },
-  { id: "side",  name: "Side Business", icon: "🔥", color: "#f08a3c", category: "Side project",
-    consistency: 0.6,
-    schedule: [ { days:[0,2], start: 19*60, dur: 120 }, { days:[5], start: 11*60, dur: 180 } ] },
-  { id: "read",  name: "Reading",       icon: "📚", color: "#a87ff0", category: "Personal",
-    consistency: 0.88,
-    schedule: [ { days:[0,1,2,3,4,5,6], start: 22*60, dur: 30 } ] },
-  { id: "couple",name: "Couple time",   icon: "❤️", color: "#ef7fc4", category: "Social",
-    consistency: 0.9,
-    schedule: [ { days:[4], start: 19*60, dur: 180 }, { days:[6], start: 17*60, dur: 180 } ] },
-  { id: "game",  name: "Gaming",        icon: "🎮", color: "#7c7ff0", category: "Personal",
-    consistency: 0.5, tracked: false,
-    schedule: [ { days:[5], start: 21*60, dur: 120 } ] },
-];
+export const HABITS = []; // Będzie zasilane z bazy danych
+export const HABIT_LOGS = []; // Będzie zasilane z bazy danych
 
 const habitById = (id) => HABITS.find(h => h.id === id);
 
@@ -101,37 +78,36 @@ function weekDates(offset) {
 }
 
 let _uid = 1;
-function generateWeek(offset) {
+export function generateWeek(offset) {
   const blocks = [];
   HABITS.forEach(h => {
-    h.schedule.forEach(slot => {
-      slot.days.forEach(day => {
-        const r = rng((offset + 100) * 1000 + h.id.charCodeAt(0) * 37 + day * 7 + slot.start);
-        let status = "planned";
-        if (offset < 0) {
-          status = r() < h.consistency ? "done" : (r() < 0.5 ? "skipped" : "planned");
-        } else if (offset === 0) {
-          if (day < TODAY_INDEX) status = r() < h.consistency ? "done" : "skipped";
-          else if (day === TODAY_INDEX) status = r() < 0.5 ? "done" : "planned";
-          else status = "planned";
-        }
+    (h.schedule || []).forEach(slot => {
+      (slot.days || []).forEach(day => {
+        // Obliczenie prawdziwej daty dla tego bloku
+        const dt = new Date(BASE_MONDAY);
+        dt.setDate(BASE_MONDAY.getDate() + offset * 7 + day);
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+        const d = String(dt.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+        
+        // Szukamy override w bazie
+        const log = HABIT_LOGS.find(l => l.habit_id === h.id && l.date === dateStr);
+        const status = log ? log.status : "planned";
+
         blocks.push({
           id: "b" + (_uid++),
           habitId: h.id,
           label: h.name,
           sublabel: SUBLABELS[h.id] || "",
           day, start: slot.start, dur: slot.dur,
-          status,
+          status: status,
+          dateStr: dateStr, // zachowujemy do update'ów
           template: true,
         });
       });
     });
   });
-  // a couple one-off custom blocks in the current week for realism
-  if (offset === 0) {
-    blocks.push({ id:"b"+(_uid++), habitId:"couple", label:"Brunch", sublabel:"with Mum", day:6, start:11*60, dur:90, status:"planned", template:false });
-    blocks.push({ id:"b"+(_uid++), habitId:"side", label:"Launch prep", sublabel:"ship landing page", day:3, start:20*60+30, dur:90, status:"planned", template:false });
-  }
   return blocks;
 }
 
@@ -162,24 +138,27 @@ function generateWeekFromHabits(habits, offset, salt) {
 function generateSharedWeek(cal, offset) {
   return generateWeekFromHabits(cal.habits, offset, cal.salt || 3);
 }
-// value: 2 = done, 1 = planned/missed, 0 = not scheduled
-function historyFor(habit, weeks = 8) {
+export function historyFor(habit, weeks = 8) {
   const scheduledDays = new Set();
-  habit.schedule.forEach(s => s.days.forEach(d => scheduledDays.add(d)));
-  // one continuous pseudo-random stream per habit (avoids per-cell banding)
-  let seed = 7;
-  for (let i = 0; i < habit.id.length; i++) seed = (seed * 31 + habit.id.charCodeAt(i)) % 2147483647;
-  const r = rng(seed || 7);
+  (habit.schedule || []).forEach(s => (s.days || []).forEach(d => scheduledDays.add(d)));
+  
   const grid = []; // [week][day]
   for (let w = 0; w < weeks; w++) {
     const row = [];
-    // slight upward trend so recent weeks read a touch stronger than a year ago
-    const target = Math.min(0.97, habit.consistency + (w / weeks) * 0.1 - 0.05);
     for (let d = 0; d < 7; d++) {
       if (!scheduledDays.has(d)) { row.push(0); continue; }
-      // most recent week (w=weeks-1) is the live one — partial
       if (w === weeks - 1 && d > TODAY_INDEX) { row.push(0); continue; }
-      row.push(r() < target ? 2 : 1);
+      
+      const dt = new Date(BASE_MONDAY);
+      // w=0 to oldest, w=weeks-1 is current week
+      dt.setDate(BASE_MONDAY.getDate() - (weeks - 1 - w) * 7 + d);
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${dd}`;
+      
+      const log = HABIT_LOGS.find(l => l.habit_id === habit.id && l.date === dateStr);
+      row.push(log && log.status === "done" ? 2 : 1);
     }
     grid.push(row);
   }
@@ -219,8 +198,8 @@ export function setWeekStart(v) { WEEK_COLS = v === "sun" ? [6,0,1,2,3,4,5] : [0
 export function weekColsOrder() { return WEEK_COLS || [0,1,2,3,4,5,6]; }
 
 export {
-  DAYS, DAYS_LONG, HABIT_PALETTE, CATEGORIES, HABITS,
-  habitById, weekDates, generateWeek, historyFor, currentStreak,
+  DAYS, DAYS_LONG, HABIT_PALETTE, CATEGORIES,
+  habitById, weekDates, currentStreak,
   minToLabel, TODAY_INDEX,
   CALENDARS, MAJA_HABITS, generateWeekFromHabits, generateSharedWeek,
 };

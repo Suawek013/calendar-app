@@ -437,7 +437,7 @@ function CalPicker({ cals, activeCal, onPick, onOpenProfile, accent }) {
 }
 
 function QuickAdd({ info, onClose, onAdd, accent }) {
-  const [sel, setSel] = React.useState(HABITS[0].id);
+  const [sel, setSel] = React.useState(HABITS.length > 0 ? HABITS[0].id : null);
   const ref = React.useRef(null);
   React.useEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
@@ -445,6 +445,15 @@ function QuickAdd({ info, onClose, onAdd, accent }) {
     return () => document.removeEventListener("pointerdown", h);
   }, []);
   const vw = window.innerWidth, x = Math.min(info.x, vw - 280);
+  
+  if (HABITS.length === 0) {
+    return (
+      <div ref={ref} className="quickadd" style={{ left: x, top: info.y + 8, padding: 15, color: "var(--text)" }}>
+        Dodaj najpierw nawyk w zakładce Habits!
+      </div>
+    );
+  }
+
   return (
     <div ref={ref} className="quickadd" style={{ left: x, top: info.y + 8 }}>
       <div className="qa-time">{min12(info.start)} · {DAYS[info.day]}</div>

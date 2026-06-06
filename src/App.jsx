@@ -1,7 +1,8 @@
 // App.jsx — shell, navigation, state, modals, tweaks
 import React from 'react';
 import { Icon } from './components.jsx';
-import { TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12 } from './data.jsx';
+import { TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12 } from './data.jsx';
+import { supabase } from './supabase.js';
 import { GOALS_SEED, GOAL_YEAR } from './goals-data.jsx';
 import DashboardView from './dashboard.jsx';
 import CalendarView from './calendar.jsx';
@@ -52,6 +53,49 @@ function App() {
   const [goalYear, setGoalYear] = React.useState(GOAL_YEAR);
   const [goalId, setGoalId] = React.useState(null);      // open detail
   const [editGoal, setEditGoal] = React.useState(null);  // {goal, isNew}
+  const [dataLoaded, setDataLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    async function init() {
+      // Pobieramy nawyki
+      const { data: habs } = await supabase.from('habits').select('*');
+      if (habs) {
+        HABITS.length = 0;
+        // Parsujemy JSON z bazy
+        habs.forEach(h => {
+          if (typeof h.schedule === 'string') h.schedule = JSON.parse(h.schedule);
+        });
+        HABITS.push(...habs);
+      }
+      
+      // Pobieramy logi (historię)
+      const { data: hlogs } = await supabase.from('habit_logs').select('*');
+      if (hlogs) {
+        HABIT_LOGS.length = 0;
+        HABIT_LOGS.push(...hlogs);
+      }
+      
+      // Pobieramy cele (opcjonalnie z zagnieżdżeniami, jeśli tabela jest gotowa)
+      // W fazie 3 skupiamy się na wyświetlaniu. Zrobimy prosty fetch celów
+      const { data: gs } = await supabase.from('goals').select('*, logs:goal_logs(*), steps:goal_steps(*), series:goal_series(*)');
+      if (gs) {
+        // Dopasowanie struktury bazy do stanu aplikacji
+        const mappedGoals = gs.map(g => ({
+          id: g.id, name: g.name, icon: g.icon, areaId: g.area_id, type: g.type,
+          target: g.target, unit: g.unit, startValue: g.start_value, current: g.current,
+          deadline: g.deadline, weeklyTarget: g.weekly_target, habitId: g.habit_id,
+          notes: g.notes, completedDate: g.completed_date,
+          logs: g.logs || [], steps: g.steps || [], series: g.series ? g.series.map(s => ({ m: s.month, v: s.value })) : []
+        }));
+        setGoals(mappedGoals);
+      }
+
+      setDataLoaded(true);
+      // Przewijamy bump żeby odświeżyć UI
+      bump();
+    }
+    init();
+  }, []);
   const [mark, setMark] = React.useState(false);
   const [period, setPeriod] = React.useState("week");
   const [clipboard, setClipboard] = React.useState(null);  // copied block payload
@@ -118,7 +162,28 @@ function App() {
 
   const setBlocks = (off, fn) => setWeeks(w => ({ ...w, [off]: fn(w[off] || generateWeek(off)) }));
 
-  const onUpdate = (id, patch) => setBlocks(weekOffset, bs => bs.map(b => b.id === id ? { ...b, ...patch } : b));
+  const onUpdate = async (id, patch) => {
+    setBlocks(weekOffset, bs => bs.map(b => b.id === id ? { ...b, ...patch } : b));
+    
+    // Zapis do Supabase jeśli zmieniamy status bloku
+    if (patch.status) {
+      const b = (weeks[weekOffset] || blocks).find(x => x.id === id);
+      if (b && b.habitId && b.dateStr) {
+        // Aktualizacja lokalnego cache'u
+        const exist = HABIT_LOGS.find(l => l.habit_id === b.habitId && l.date === b.dateStr);
+        if (exist) exist.status = patch.status;
+        else HABIT_LOGS.push({ habit_id: b.habitId, date: b.dateStr, status: patch.status });
+        
+        // Wysłanie do bazy
+        await supabase.from('habit_logs').upsert({
+          habit_id: b.habitId,
+          date: b.dateStr,
+          status: patch.status
+        }, { onConflict: 'habit_id, date' });
+        bump(); // Odśwież np. statystyki roczne
+      }
+    }
+  };
   const onDelete = (id) => { setBlocks(weekOffset, bs => bs.filter(b => b.id !== id)); setEditing(null); };
   const onReset = () => setWeeks(w => ({ ...w, [weekOffset]: generateWeek(weekOffset) }));
 
@@ -131,8 +196,13 @@ function App() {
   };
 
   const onAdd = (off, info) => {
+    if (HABITS.length === 0) {
+      alert("Musisz najpierw dodać jakikolwiek nawyk w zakładce Habits!");
+      return;
+    }
     if (info && info.habitId) {
       const h = habitById(info.habitId);
+      if (!h) return;
       const nb = { id: "n" + Date.now(), habitId: info.habitId, label: h.name,
         sublabel: "", day: info.day, start: info.start, dur: 60, status: "planned", template: false };
       setBlocks(off, bs => [...bs, nb]);
@@ -214,7 +284,11 @@ function App() {
     { id: "profile", icon: "users", label: "Sharing" },
   ];
 
-  return (
+  return !dataLoaded ? (
+    <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
+      Ładowanie danych z Supabase...
+    </div>
+  ) : (
     <div className="app" style={{ "--accent": accent }}>
       {/* desktop sidebar */}
       <nav className="sidebar">
