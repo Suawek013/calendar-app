@@ -220,6 +220,80 @@ function App() {
   // waking hours drive the calendar grid range (read as globals by the views)
   setGrid(wake, bed);
 
+  // auto-complete past blocks
+  React.useEffect(() => {
+    if (!dataLoaded || !session) return;
+    const checkAutoDone = () => {
+      const now = new Date();
+      const todayIx = (now.getDay() + 6) % 7;
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+
+      let toUpsert = [];
+      setWeeks(prev => {
+        let didUpdate = false;
+        const next = { ...prev };
+        
+        for (const [woStr, bList] of Object.entries(next)) {
+          const wo = parseInt(woStr);
+          if (wo > 0) continue; 
+          
+          let changedThisWeek = false;
+          const dts = weekDates(wo).map(dt => {
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const d = String(dt.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+          });
+
+          const updatedList = bList.map(b => {
+            if (b.status === "planned") {
+              const isPastWeek = wo < 0;
+              const isPastDay = wo === 0 && b.day < todayIx;
+              const isPastTime = wo === 0 && b.day === todayIx && (b.start + b.dur) <= nowMins;
+              
+              if (isPastWeek || isPastDay || isPastTime) {
+                changedThisWeek = true;
+                didUpdate = true;
+                const nb = { ...b, status: "done", template: false };
+                toUpsert.push({
+                  id: nb.id,
+                  user_id: session.user.id,
+                  habit_id: nb.habitId,
+                  date_str: dts[nb.day],
+                  start_min: nb.start,
+                  dur: nb.dur,
+                  status: nb.status,
+                  label: nb.label,
+                  sublabel: nb.sublabel,
+                  icon: nb.icon || null,
+                  color: nb.color || null,
+                });
+                return nb;
+              }
+            }
+            return b;
+          });
+          if (changedThisWeek) next[woStr] = updatedList;
+        }
+        
+        if (didUpdate) {
+            setTimeout(async () => {
+              if (toUpsert.length > 0) {
+                await supabase.from('custom_blocks').upsert(toUpsert);
+                bump();
+              }
+            }, 0);
+            return next;
+        }
+        return prev;
+      });
+    };
+
+    checkAutoDone();
+    const t = setInterval(checkAutoDone, 60000);
+    return () => clearInterval(t);
+  }, [dataLoaded, session]);
+
   // lazy week generation
   const getBlocks = (off) => {
     if (!dataLoaded) return [];
