@@ -5,9 +5,10 @@ import React from 'react';
 import { Icon, Segmented, hexA } from './components.jsx';
 import { supabase } from './supabase.js';
 
-function ProfileView({ accent, me, partner, partnerEnabled, setPartnerEnabled, onViewPartner,
+function ProfileView({ accent, me, partner, shareToken, partnerEnabled, setPartnerEnabled, onViewPartner,
   clock, setClock, weekStart, setWeekStart }) {
-  const shareLink = "cadence.app/s/slawek-3fb9";
+  const shareLink = shareToken ? `${window.location.host}/?share=${shareToken.token}` : "Generating...";
+  const copyLink = shareToken ? `${window.location.origin}/?share=${shareToken.token}` : "";
   return (
     <div className="profile">
       <header className="profile-head">
@@ -23,11 +24,13 @@ function ProfileView({ accent, me, partner, partnerEnabled, setPartnerEnabled, o
 
       <div className="profile-grid">
         <div className="pf-col">
-          <ShareCard accent={accent} shareLink={shareLink} partner={partner}
+          <ShareCard accent={accent} shareLink={shareLink} copyLink={copyLink} partner={partner}
             partnerEnabled={partnerEnabled} setPartnerEnabled={setPartnerEnabled} />
 
-          <SharedWithYou accent={accent} partner={partner} partnerEnabled={partnerEnabled}
-            onView={onViewPartner} />
+          {partner && (
+            <SharedWithYou accent={accent} partner={partner} partnerEnabled={partnerEnabled}
+              onView={onViewPartner} />
+          )}
         </div>
 
         <div className="pf-col">
@@ -48,12 +51,16 @@ function ProfileView({ accent, me, partner, partnerEnabled, setPartnerEnabled, o
   );
 }
 
-function ShareCard({ accent, shareLink, partner, partnerEnabled, setPartnerEnabled }) {
+function ShareCard({ accent, shareLink, copyLink, partner, partnerEnabled, setPartnerEnabled }) {
   const [copied, setCopied] = React.useState(false);
   const [vis, setVis] = React.useState("busy");   // busy | full
+  
+  // W idealnym scenariuszu tutaj byśmy zrobili update w Supabase `share_tokens` przy zmianie "vis"
+  // na razie frontendowy mock dla samego segmented.
+  
   function copy() {
     setCopied(true);
-    try { navigator.clipboard && navigator.clipboard.writeText("https://" + shareLink); } catch (e) {}
+    try { navigator.clipboard && navigator.clipboard.writeText(copyLink); } catch (e) {}
     setTimeout(() => setCopied(false), 1600);
   }
   return (
@@ -78,6 +85,7 @@ function ShareCard({ accent, shareLink, partner, partnerEnabled, setPartnerEnabl
           options={[{value:"busy",label:"Busy / free"},{value:"full",label:"Full detail"}]} />
       </div>
 
+      {partner && (
       <div className="share-people">
         <div className="sp-label">Shared with</div>
         <div className="sp-row">
@@ -87,6 +95,7 @@ function ShareCard({ accent, shareLink, partner, partnerEnabled, setPartnerEnabl
         </div>
         <button className="sp-invite"><Icon name="plus" size={14} stroke={2.4} /> Invite someone</button>
       </div>
+      )}
     </section>
   );
 }
@@ -106,7 +115,7 @@ function SharedWithYou({ accent, partner, partnerEnabled, setPartnerEnabled, onV
             <div className="swy-sub">{partner.email} · view only</div>
           </div>
         </div>
-        <p className="swy-note">See {partner.name}’s week alongside yours, and overlay her busy times on your calendar to find shared free time.</p>
+        <p className="swy-note">See {partner.name}’s week alongside yours, and overlay busy times on your calendar to find shared free time.</p>
         <div className="swy-actions">
           <button className="swy-view" style={{ background: partner.color }} onClick={onView}>
             <Icon name="eye" size={15} /> <span>Open {partner.name}’s calendar</span>

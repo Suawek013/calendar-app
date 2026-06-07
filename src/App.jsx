@@ -1,7 +1,7 @@
 // App.jsx — shell, navigation, state, modals, tweaks
 import React from 'react';
 import { Icon } from './components.jsx';
-import { TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, CUSTOM_BLOCKS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12 } from './data.jsx';
+import { generateWeekFromData, TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, CUSTOM_BLOCKS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12 } from './data.jsx';
 import { supabase } from './supabase.js';
 import { GOALS_SEED, GOAL_YEAR } from './goals-data.jsx';
 import LoginView from './login.jsx';
@@ -57,8 +57,21 @@ function App() {
   const [dataLoaded, setDataLoaded] = React.useState(false);
   const [session, setSession] = React.useState(null);
   const [isInitializingAuth, setIsInitializingAuth] = React.useState(true);
+  const [myProfile, setMyProfile] = React.useState({ id: "me", name: "", initial: "", color: "#3fb98a", email: "" });
+  const [sharedProfiles, setSharedProfiles] = React.useState([]);
+  const [myShareToken, setMyShareToken] = React.useState(null);
+  const [partnerHabitsData, setPartnerHabitsData] = React.useState({ habits: [], logs: [], blocks: [] });
 
-  // Nasłuchiwanie na zmiany sesji (logowanie, wylogowanie)
+  // Nasłuchiwanie na zmiany sesji
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const share = params.get('share');
+    if (share) {
+      localStorage.setItem('cad_share', share);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+// (logowanie, wylogowanie)
   React.useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -80,36 +93,77 @@ function App() {
     
     async function init() {
       setDataLoaded(false);
-      // Pobieramy nawyki
+      
+      const userId = session.user.id;
+
+      // 1. Process pending share
+      const pendingShare = localStorage.getItem('cad_share');
+      if (pendingShare) {
+        const { data: st } = await supabase.from('share_tokens').select('*').eq('token', pendingShare).single();
+        if (st && st.owner_id !== userId) {
+          await supabase.from('calendar_shares').insert({ owner_id: st.owner_id, viewer_id: userId, detail_level: st.detail_level }).select();
+        }
+        localStorage.removeItem('cad_share');
+      }
+
+      // 2. Load my profile
+      const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      if (prof) setMyProfile({ id: prof.id, name: prof.name, initial: prof.initial, color: prof.color, email: prof.email, access: "owner" });
+
+      // 3. Ensure share token
+      const { data: tokenData } = await supabase.from('share_tokens').select('*').eq('owner_id', userId).maybeSingle();
+      let myToken = tokenData;
+      if (!myToken) {
+         const t = Math.random().toString(36).slice(2, 8);
+         const { data: newT } = await supabase.from('share_tokens').insert({ token: t, owner_id: userId }).select().single();
+         myToken = newT;
+      }
+      setMyShareToken(myToken);
+
+      // 4. Load shares
+      const { data: shares } = await supabase.from('calendar_shares').select('owner_id, detail_level').eq('viewer_id', userId);
+      const ownerIds = (shares || []).map(s => s.owner_id);
+      
+      let pProfs = [];
+      if (ownerIds.length > 0) {
+        const { data: profs } = await supabase.from('profiles').select('*').in('id', ownerIds);
+        pProfs = (profs || []).map(p => {
+          const detail = shares.find(s => s.owner_id === p.id).detail_level;
+          return { ...p, access: "view", salt: p.id.charCodeAt(0), detail_level: detail };
+        });
+      }
+      setSharedProfiles(pProfs);
+
+      // 5. Pobieramy nawyki (własne i partnerów dzięki RLS)
       const { data: habs } = await supabase.from('habits').select('*');
       if (habs) {
+        habs.forEach(h => { if (typeof h.schedule === 'string') h.schedule = JSON.parse(h.schedule); });
+        
         HABITS.length = 0;
-        // Parsujemy JSON z bazy
-        habs.forEach(h => {
-          if (typeof h.schedule === 'string') h.schedule = JSON.parse(h.schedule);
-        });
-        HABITS.push(...habs);
+        HABITS.push(...habs.filter(h => h.user_id === userId));
       }
       
-      // Pobieramy logi (historię)
       const { data: hlogs } = await supabase.from('habit_logs').select('*');
       if (hlogs) {
         HABIT_LOGS.length = 0;
-        HABIT_LOGS.push(...hlogs);
+        HABIT_LOGS.push(...hlogs.filter(h => h.user_id === userId));
       }
 
-      // Pobieramy manualne edycje bloków
       const { data: cblocks } = await supabase.from('custom_blocks').select('*');
       if (cblocks) {
         CUSTOM_BLOCKS.length = 0;
-        CUSTOM_BLOCKS.push(...cblocks);
+        CUSTOM_BLOCKS.push(...cblocks.filter(h => h.user_id === userId));
       }
       
-      // Pobieramy cele (opcjonalnie z zagnieżdżeniami, jeśli tabela jest gotowa)
-      // W fazie 3 skupiamy się na wyświetlaniu. Zrobimy prosty fetch celów
+      // Store partner data separately for rendering
+      setPartnerHabitsData({
+        habits: habs ? habs.filter(h => h.user_id !== userId) : [],
+        logs: hlogs ? hlogs.filter(l => l.user_id !== userId) : [],
+        blocks: cblocks ? cblocks.filter(b => b.user_id !== userId) : []
+      });
+
       const { data: gs } = await supabase.from('goals').select('*, logs:goal_logs(*), steps:goal_steps(*), series:goal_series(*)');
       if (gs) {
-        // Dopasowanie struktury bazy do stanu aplikacji
         const mappedGoals = gs.map(g => ({
           id: g.id, name: g.name, icon: g.icon, areaId: g.area_id, type: g.type,
           target: g.target, unit: g.unit, startValue: g.start_value, current: g.current,
@@ -121,7 +175,6 @@ function App() {
       }
 
       setDataLoaded(true);
-      // Przewijamy bump żeby odświeżyć UI
       bump();
     }
     init();
@@ -173,22 +226,37 @@ function App() {
   const blocks = weeks[weekOffset] || getBlocks(weekOffset);
 
   // partner (shared, read-only) week cache
-  const partner = CALENDARS.maja, me = CALENDARS.me;
+  
+  const me = myProfile;
+  const calsList = [ { ...me, access: "owner" }, ...sharedProfiles ];
+  const partner = sharedProfiles.length > 0 ? sharedProfiles[0] : null;
+  
   const getShared = (calId, off) => {
     const key = calId + ":" + off;
     if (sharedWeeks[key]) return sharedWeeks[key];
-    const gen = generateSharedWeek(CALENDARS[calId], off);
+    
+    // Anonymize habits if busy
+    const pProfile = sharedProfiles.find(p => p.id === calId);
+    if (!pProfile) return [];
+    const isBusy = pProfile.detail_level === 'busy';
+    
+    const p_habits = partnerHabitsData.habits.filter(h => h.user_id === calId).map(h => ({
+      ...h,
+      name: isBusy ? "Busy" : h.name,
+      sub: isBusy ? "" : h.category,
+      icon: isBusy ? "🔒" : h.icon
+    }));
+    const p_logs = partnerHabitsData.logs.filter(l => l.user_id === calId);
+    const p_blocks = partnerHabitsData.blocks.filter(b => b.user_id === calId);
+    
+    const gen = generateWeekFromData(p_habits, p_logs, p_blocks, off);
     setSharedWeeks(w => ({ ...w, [key]: gen }));
     return gen;
   };
-  const partnerBlocks = getShared("maja", weekOffset);
+  const partnerBlocks = sharedProfiles.length > 0 ? getShared(sharedProfiles[0].id, weekOffset) : [];
   const readOnly = activeCal !== "me";
   const shownBlocks = readOnly ? getShared(activeCal, weekOffset) : blocks;
   const overlayBlocks = (!readOnly && overlay) ? partnerBlocks : null;
-  const calsList = [
-    { ...me, access: "owner" },
-    { ...partner, access: "view" },
-  ];
 
   const setBlocks = (off, fn) => setWeeks(w => ({ ...w, [off]: fn(w[off] || generateWeek(off)) }));
 
@@ -452,7 +520,7 @@ function App() {
         {view === "setup" && <SetupView accent={accent} bump={bump} wake={wake} bed={bed} setWake={setWake} setBed={setBed}
           onEditHabit={(id) => setEditHabit({ habit: habitById(id), isNew: false })}
           onAddHabit={() => setEditHabit({ habit: { name: "", icon: "✨", color: HABIT_PALETTE[4], category: "Personal", tracked: true, schedule: [{ days: [], start: 9*60, dur: 60 }] }, isNew: true })} />}
-        {view === "profile" && <ProfileView accent={accent} me={me} partner={partner}
+        {view === "profile" && <ProfileView accent={accent} me={me} partner={partner} shareToken={myShareToken}
           partnerEnabled={overlay} setPartnerEnabled={setOverlay} onViewPartner={viewPartner}
           clock={clock} setClock={changeClock} weekStart={weekStart} setWeekStart={changeWeekStart} />}
       </main>

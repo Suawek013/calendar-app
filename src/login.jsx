@@ -19,6 +19,9 @@ function LoginView({ accent = "#3fb98a" }) {
       const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: window.location.origin,
+        }
       });
       errorResult = error;
     } else {

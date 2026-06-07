@@ -79,11 +79,10 @@ function weekDates(offset) {
 }
 
 let _uid = 1;
-export function generateWeek(offset) {
+export function generateWeekFromData(habits, logs, customBlocks, offset) {
   const blocks = [];
   const dts = [];
   
-  // Cache the exact date strings for the 7 days of this week (Mon-Sun)
   for (let i = 0; i < 7; i++) {
     const dt = new Date(BASE_MONDAY);
     dt.setDate(BASE_MONDAY.getDate() + offset * 7 + i);
@@ -93,58 +92,61 @@ export function generateWeek(offset) {
     dts.push(`${y}-${m}-${d}`);
   }
 
-  HABITS.forEach(h => {
+  habits.forEach(h => {
     (h.schedule || []).forEach(slot => {
       (slot.days || []).forEach(day => {
         const dateStr = dts[day];
-        
-        // Deterministyczne ID, aby móc powiązać override z custom_blocks
         const blockId = `t_${h.id}_${dateStr}_${slot.start}`;
         
-        // Jeśli ten blok został zmodyfikowany lub przesunięty, pomijamy wygenerowanie oryginału
-        if (CUSTOM_BLOCKS.some(cb => cb.id === blockId)) return;
+        if (customBlocks.some(cb => cb.id === blockId)) return;
 
-        const log = HABIT_LOGS.find(l => l.habit_id === h.id && l.date === dateStr);
+        const log = logs.find(l => l.habit_id === h.id && l.date === dateStr);
         const status = log ? log.status : "planned";
 
         blocks.push({
           id: blockId,
           habitId: h.id,
           label: h.name,
-          sublabel: SUBLABELS[h.id] || "",
+          sublabel: h.sub || SUBLABELS[h.id] || "",
           day, start: slot.start, dur: slot.dur,
           status: status,
           dateStr: dateStr,
           template: true,
+          color: h.color,
+          icon: h.icon
         });
       });
     });
   });
 
-  // Dodajemy bloki, które zostały zmodyfikowane lub dodane ręcznie w tym tygodniu
-  CUSTOM_BLOCKS.forEach(cb => {
+  customBlocks.forEach(cb => {
     const dayIndex = dts.indexOf(cb.date_str);
-    // Renderujemy tylko te, które wypadają w aktualnie otwartym tygodniu i nie są usunięte
     if (dayIndex >= 0 && !cb.deleted) {
-      const h = habitById(cb.habit_id);
-      if (!h) return; // Jeśli nawyk już nie istnieje, pomijamy sierotę
+      const h = habits.find(x => x.id === cb.habit_id);
+      if (!h) return;
 
       blocks.push({
         id: cb.id,
         habitId: cb.habit_id,
         label: cb.label || h.name,
-        sublabel: cb.sublabel || SUBLABELS[h.id] || "",
+        sublabel: cb.sublabel || h.sub || SUBLABELS[h.id] || "",
         day: dayIndex,
         start: cb.start_min,
         dur: cb.dur,
         status: cb.status,
         dateStr: cb.date_str,
-        template: false
+        template: false,
+        color: h.color,
+        icon: h.icon
       });
     }
   });
 
   return blocks;
+}
+
+export function generateWeek(offset) {
+  return generateWeekFromData(HABITS, HABIT_LOGS, CUSTOM_BLOCKS, offset);
 }
 
 // Generic week generator for an arbitrary habit list (used by shared calendars).
