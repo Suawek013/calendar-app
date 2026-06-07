@@ -421,6 +421,15 @@ function App() {
     setEditHabit(null); bump();
   };
 
+  const onUpdateProfile = async (updates) => {
+    const nextProf = { ...myProfile, ...updates };
+    nextProf.initial = nextProf.name ? nextProf.name.charAt(0).toUpperCase() : "U";
+    setMyProfile(nextProf);
+    if (session && session.user) {
+      await supabase.from('profiles').update({ name: nextProf.name, initial: nextProf.initial }).eq('id', session.user.id);
+    }
+  };
+
   // ---- goal handlers ----
   const updateGoal = (id, fn) => setGoals(gs => gs.map(g => g.id === id ? fn(g) : g));
   const onLogProgress = (id, entry) => updateGoal(id, g => {
@@ -523,7 +532,8 @@ function App() {
           onAddHabit={() => setEditHabit({ habit: { name: "", icon: "✨", color: HABIT_PALETTE[4], category: "Personal", tracked: true, schedule: [{ days: [], start: 9*60, dur: 60 }] }, isNew: true })} />}
         {view === "profile" && <ProfileView accent={accent} me={me} partner={partner} shareToken={myShareToken}
           partnerEnabled={overlay} setPartnerEnabled={setOverlay} onViewPartner={viewPartner}
-          clock={clock} setClock={changeClock} weekStart={weekStart} setWeekStart={changeWeekStart} />}
+          clock={clock} setClock={changeClock} weekStart={weekStart} setWeekStart={changeWeekStart}
+          onUpdateProfile={onUpdateProfile} />}
       </main>
 
       {/* mobile bottom tab */}

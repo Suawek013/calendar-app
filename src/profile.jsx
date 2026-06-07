@@ -7,8 +7,10 @@ import { supabase } from './supabase.js';
 import { useTranslation } from './i18n.jsx';
 
 function ProfileView({ accent, me, partner, shareToken, partnerEnabled, setPartnerEnabled, onViewPartner,
-  clock, setClock, weekStart, setWeekStart }) {
+  clock, setClock, weekStart, setWeekStart, onUpdateProfile }) {
   const { t } = useTranslation();
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editName, setEditName] = React.useState(me.name);
   const shareLink = shareToken ? `${window.location.host}/?share=${shareToken.token}` : "Generating...";
   const copyLink = shareToken ? `${window.location.origin}/?share=${shareToken.token}` : "";
   return (
@@ -17,11 +19,24 @@ function ProfileView({ accent, me, partner, shareToken, partnerEnabled, setPartn
         <div className="pf-id">
           <div className="pf-avatar" style={{ background: accent }}>{me.initial}</div>
           <div>
-            <h1 className="pf-name">{me.name}</h1>
+            {isEditing ? (
+              <input className="pf-name-input" value={editName} autoFocus
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={(e) => { if(e.key === "Enter") { onUpdateProfile({ name: editName }); setIsEditing(false); } }} />
+            ) : (
+              <h1 className="pf-name">{me.name}</h1>
+            )}
             <div className="pf-email"><Icon name="mail" size={13} /> {me.email}</div>
           </div>
         </div>
-        <button className="ghost-btn">{t("prof.edit")}</button>
+        {isEditing ? (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="ghost-btn" onClick={() => { setIsEditing(false); setEditName(me.name); }}>{t("prof.cancel")}</button>
+            <button className="save-btn" style={{ background: accent }} onClick={() => { onUpdateProfile({ name: editName }); setIsEditing(false); }}>{t("prof.save")}</button>
+          </div>
+        ) : (
+          <button className="ghost-btn" onClick={() => setIsEditing(true)}>{t("prof.edit")}</button>
+        )}
       </header>
 
       <div className="profile-grid">

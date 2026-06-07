@@ -10,6 +10,8 @@ const EN = {
 
   // Profile
   "prof.edit": "Edit profile",
+  "prof.save": "Save profile",
+  "prof.cancel": "Cancel",
   "prof.acct.title": "Account",
   "prof.acct.plan": "Plan",
   "prof.acct.member": "Member since",
@@ -344,6 +346,8 @@ const PL = {
 
   // Profile
   "prof.edit": "Edytuj profil",
+  "prof.save": "Zapisz profil",
+  "prof.cancel": "Anuluj",
   "prof.acct.title": "Konto",
   "prof.acct.plan": "Plan",
   "prof.acct.member": "Członek od",
