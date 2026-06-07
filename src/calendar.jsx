@@ -520,7 +520,7 @@ function CalToolbar({ weekOffset, setWeekOffset, dates, isContinuous, toggleCont
         {!readOnly && (
           <div className="cal-reset-group" style={{ display: "flex", gap: 4 }}>
             <button className="ghost-btn" onClick={onReset} title="Przywróć szablon z nawyków">Przywróć</button>
-            <button className="ghost-btn" onClick={() => { if(confirm("Czy na pewno chcesz usunąć wszystkie bloki z tego tygodnia?")) onClear(); }} title="Wyczyść wszystkie bloki">Wyczyść</button>
+            <button className="ghost-btn" onClick={onClear} title="Wyczyść wszystkie bloki">Wyczyść</button>
           </div>
         )}
         <button className="ghost-btn" style={{ padding: "6px 10px", display: "flex", gap: 6, alignItems: "center" }} onClick={toggleContinuous}>
