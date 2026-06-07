@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const EN = {
-  "nav.dash": "Dashboard",
-  "nav.cal": "Calendar",
+  "nav.dashboard": "Dashboard",
+  "nav.calendar": "Calendar",
   "nav.goals": "Goals",
+  "nav.setup": "Habits",
   "nav.profile": "Profile",
   "app.loading": "Loading data from Supabase...",
 
@@ -334,9 +335,10 @@ const EN = {
 };
 
 const PL = {
-  "nav.dash": "Pulpit",
-  "nav.cal": "Kalendarz",
+  "nav.dashboard": "Pulpit",
+  "nav.calendar": "Kalendarz",
   "nav.goals": "Cele",
+  "nav.setup": "Nawyki",
   "nav.profile": "Profil",
   "app.loading": "Ładowanie danych z Supabase...",
 
