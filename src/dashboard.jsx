@@ -7,7 +7,7 @@ import { Icon, Segmented, Donut, YearHeatmap, yearStats, ActivityGrid, hexA } fr
 import { GOAL_YEAR, goalStatus, areaById, fmtNum } from './goals-data.jsx';
 import { useTranslation } from './i18n.jsx';
 function DashboardView({ blocks, weekOffset, onGoCalendar, onMarkHabits, onAdd, accent, period, setPeriod, goals, onOpenGoal, onGoGoals }) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const tracked = HABITS.filter(h => h.tracked !== false);
   const doneCount = blocks.filter(b => b.status === "done").length;
   const schedCount = blocks.filter(b => b.status !== "skipped").length;
