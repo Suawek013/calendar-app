@@ -102,8 +102,8 @@ function CalendarView({
       startX: e.clientX, startY: e.clientY,
       originalDay: b.day,
     };
-    setDrag({ id: b.id, day: b.day, start: b.start, dur: b.dur, moved: false, mode, isClone: false });
-    previewRef.current = { day: b.day, start: b.start, dur: b.dur, moved: false, isClone: false };
+    setDrag({ id: b.id, day: b.day, start: b.start, dur: b.dur, moved: false, mode, isClone: mode === "clone" });
+    previewRef.current = { day: b.day, start: b.start, dur: b.dur, moved: false, isClone: mode === "clone" };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   }
@@ -111,8 +111,9 @@ function CalendarView({
   function onMove(e) {
     const di = dragInfo.current; if (!di) return;
     const g = geom();
-    const moved = Math.abs(e.clientX - di.startX) > 4 || Math.abs(e.clientY - di.startY) > 4;
-    if (di.mode === "move") {
+    let moved = false; if (Math.abs(e.clientX - di.startX) > 3 || Math.abs(e.clientY - di.startY) > 3) moved = true;
+    
+    if (di.mode === "move" || di.mode === "clone") {
       const px = (e.clientX - g.left) - di.grabDX;
       const py = (e.clientY - g.top) - di.grabDY;
       let ci = Math.round((px - GUTTER) / colW); ci = Math.max(0, Math.min(6, ci));
@@ -120,7 +121,7 @@ function CalendarView({
       let slotIx = Math.round(py / SLOT);
       let start = GRID_START + slotIx * 30;
       start = Math.max(GRID_START, Math.min(GRID_END - di.dur, start));
-      const isClone = e.altKey || day !== di.originalDay;
+      const isClone = e.altKey || di.mode === "clone";
       previewRef.current = { day, start, dur: di.dur, moved, isClone };
       setDrag(d => ({ ...d, day, start, moved, isClone }));
     } else {
@@ -143,7 +144,7 @@ function CalendarView({
     if (!di || !d) return;
     if (!d.moved) { setSelId(di.id); return; }
     
-    if (d.isClone && di.mode === "move") {
+    if (d.isClone && (di.mode === "move" || di.mode === "clone")) {
       const b = blocks.find(x => x.id === di.id);
       onCreateBlock(weekOffset, { ...b, day: d.day, start: d.start, dur: d.dur, status: "planned", id: undefined });
     } else {
@@ -221,7 +222,9 @@ function CalendarView({
       }
       
       const k = e.key.toLowerCase();
-      if (k === "c" && b) { copyBlock(b); e.preventDefault(); }
+      if (k === "z") { undo(); e.preventDefault(); }
+      else if (k === "y") { redo(); e.preventDefault(); }
+      else if (k === "c" && b) { copyBlock(b); e.preventDefault(); }
       else if (k === "x" && !readOnly && b) { cutBlock(b); e.preventDefault(); }
       else if (k === "d" && !readOnly && b) { duplicate(b); e.preventDefault(); }
       else if (k === "v" && !readOnly && clipboard) {
@@ -232,7 +235,7 @@ function CalendarView({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [blocks, clipboard, weekOffset, readOnly, selId]);
+  }, [blocks, clipboard, weekOffset, readOnly, selId, undo, redo]);
 
   const hours = [];
   for (let m = GRID_START; m <= GRID_END; m += 60) hours.push(m);
@@ -424,7 +427,9 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, sele
         const tip = t("cal.block.contributing", {goals: goals.map(g => g.name).join(", "), prog});
         return <span className="cal-goal-dot" style={{ background: gColor }} title={tip} />;
       })()}
-      {!readOnly && <div className="cal-resize" onPointerDown={(e) => onDown(e, b, "resize")} />}
+      {!readOnly && <div className="cal-block-resizer" onPointerDown={(e) => { e.stopPropagation(); onDown(e, b, "resize"); }} />}
+      {!readOnly && <div className="cal-block-cloner left" onPointerDown={(e) => { e.stopPropagation(); onDown(e, b, "clone"); }} />}
+      {!readOnly && <div className="cal-block-cloner right" onPointerDown={(e) => { e.stopPropagation(); onDown(e, b, "clone"); }} />}
     </div>
   );
 }

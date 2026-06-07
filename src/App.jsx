@@ -186,6 +186,7 @@ function App() {
   const [mark, setMark] = React.useState(false);
   const [period, setPeriod] = React.useState("week");
   const [clipboard, setClipboard] = React.useState(null);  // copied block payload
+  const [history, setHistory] = React.useState({ past: [], future: [] });
   const [activeCal, setActiveCal] = React.useState("me");  // "me" | "maja"
   const [overlay, setOverlay] = React.useState(false);     // partner busy-times on my week
   const [sharedWeeks, setSharedWeeks] = React.useState({}); // `${calId}:${off}` -> blocks
@@ -376,9 +377,15 @@ function App() {
     await supabase.from('custom_blocks').upsert(cb);
   };
 
-  const onUpdate = async (id, patch) => {
+  const onUpdate = async (id, patch, skipHistory = false) => {
     const b = (weeks[weekOffset] || blocks).find(x => x.id === id);
     if (!b) return;
+
+    if (!skipHistory) {
+      const oldPatch = {};
+      for (const k in patch) { oldPatch[k] = b[k]; }
+      setHistory(h => ({ past: [...h.past, { type: "update", id, oldPatch, newPatch: patch, weekOffset }], future: [] }));
+    }
 
     setBlocks(weekOffset, bs => bs.map(x => x.id === id ? { ...x, ...patch } : x));
     
@@ -403,11 +410,17 @@ function App() {
     }
   };
 
-  const onDelete = async (id) => { 
+  const onDelete = async (id, skipHistory = false) => { 
     const b = (weeks[weekOffset] || blocks).find(x => x.id === id);
+    if (!b) return;
+
+    if (!skipHistory) {
+      setHistory(h => ({ past: [...h.past, { type: "delete", block: b, weekOffset }], future: [] }));
+    }
+
     setBlocks(weekOffset, bs => bs.filter(x => x.id !== id)); 
     setEditing(null); 
-    if (b) await syncCustomBlock(b, {}, true); 
+    await syncCustomBlock(b, {}, true); 
   };
 
   const onReset = () => {
@@ -415,13 +428,46 @@ function App() {
     setWeeks(w => ({ ...w, [weekOffset]: generateWeek(weekOffset) }));
   };
 
-  const onCreateBlock = async (off, b) => {
-    const nb = { ...b, id: "n" + Date.now() + Math.random().toString(36).slice(2, 5),
+  const onCreateBlock = async (off, b, skipHistory = false) => {
+    const nb = { ...b, id: b.id || "n" + Date.now() + Math.random().toString(36).slice(2, 5),
       status: b.status || "planned", template: false };
+    
+    if (!skipHistory) {
+      setHistory(h => ({ past: [...h.past, { type: "create", id: nb.id, block: nb, weekOffset: off }], future: [] }));
+    }
+
     setBlocks(off, bs => [...bs, nb]);
     await syncCustomBlock(nb, nb); // Save to DB!
     return nb;
   };
+
+  const undo = React.useCallback(() => {
+    setHistory(h => {
+      if (h.past.length === 0) return h;
+      const act = h.past[h.past.length - 1];
+      const newPast = h.past.slice(0, -1);
+      
+      if (act.type === "update") onUpdate(act.id, act.oldPatch, true);
+      else if (act.type === "delete") onCreateBlock(act.weekOffset, act.block, true);
+      else if (act.type === "create") onDelete(act.id, true);
+      
+      return { past: newPast, future: [act, ...h.future] };
+    });
+  }, [onUpdate, onDelete, onCreateBlock]);
+
+  const redo = React.useCallback(() => {
+    setHistory(h => {
+      if (h.future.length === 0) return h;
+      const act = h.future[0];
+      const newFuture = h.future.slice(1);
+      
+      if (act.type === "update") onUpdate(act.id, act.newPatch, true);
+      else if (act.type === "delete") onDelete(act.block.id, true);
+      else if (act.type === "create") onCreateBlock(act.weekOffset, act.block, true);
+      
+      return { past: [...h.past, act], future: newFuture };
+    });
+  }, [onUpdate, onDelete, onCreateBlock]);
 
   const onAdd = async (off, info) => {
     if (HABITS.length === 0) {
@@ -596,7 +642,8 @@ function App() {
           clipboard={clipboard} setClipboard={setClipboard} onCreateBlock={onCreateBlock}
           readOnly={readOnly} overlayBlocks={overlayBlocks} partner={partner}
           cals={calsList} activeCal={activeCal} onPickCal={setActiveCal} onOpenProfile={() => setView("profile")}
-          overlayOn={overlay} setOverlay={setOverlay} partnerEnabled={true} goalsByHabit={goalsByHabit} />}
+          overlayOn={overlay} setOverlay={setOverlay} partnerEnabled={true} goalsByHabit={goalsByHabit}
+          undo={undo} redo={redo} />}
         {view === "goals" && (detailGoal
           ? <GoalDetail goal={detailGoal} onBack={() => setGoalId(null)} onEdit={onEditGoal}
               onLog={(entry) => onLogProgress(goalId, entry)} onToggleStep={(sid) => onToggleStep(goalId, sid)}
