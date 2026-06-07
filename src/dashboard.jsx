@@ -36,8 +36,11 @@ function DashboardView({ blocks, weekOffset, onGoCalendar, onMarkHabits, onAdd, 
     <div className="dash">
       <header className="dash-head">
         <div>
-          <div className="dash-greet">{t("dash.greet", {name: "Sławek"})}</div>
-          <div className="dash-date">Thursday, June 4 · <span style={{ color: accent }}>{t("dash.habitsTracked", {count: tracked.length})}</span></div>
+          <div className="dash-date" style={{ fontSize: "18px", fontWeight: 600, color: "var(--text)" }}>
+            {new Date().toLocaleDateString(lang === "pl" ? "pl-PL" : "en-US", { weekday: 'long', month: 'long', day: 'numeric' })}
+            <span style={{ color: "var(--muted)", fontWeight: 400, marginLeft: 8 }}>·</span>
+            <span style={{ color: accent, marginLeft: 8 }}>{t("dash.habitsTracked", {count: tracked.length})}</span>
+          </div>
         </div>
         <div className="dash-headstat">
           <div className="hs-num" style={{ fontFamily: "var(--head)" }}>{doneCount}<span className="hs-den">/{schedCount}</span></div>
