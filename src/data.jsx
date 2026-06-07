@@ -62,9 +62,11 @@ function rng(seed) {
   return () => (s = s * 16807 % 2147483647) / 2147483647;
 }
 
-// Current week anchor: Monday June 1, 2026. Today = Thursday June 4 (index 3).
-const TODAY_INDEX = 3;
-const BASE_MONDAY = new Date(2026, 5, 1);
+// Current week anchor and today's index, calculated dynamically based on real time.
+const _now = new Date();
+const TODAY_INDEX = (_now.getDay() + 6) % 7;
+const BASE_MONDAY = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - TODAY_INDEX);
+BASE_MONDAY.setHours(0, 0, 0, 0);
 
 function weekDates(offset) {
   const cols = WEEK_COLS || [0,1,2,3,4,5,6];
