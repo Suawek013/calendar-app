@@ -476,11 +476,7 @@ function App() {
     return <LoginView accent={accent} />;
   }
 
-  return !dataLoaded ? (
-    <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', background: 'var(--bg)' }}>
-      {tr("app.loading")}
-    </div>
-  ) : (
+  return (
     <div className="app" style={{ "--accent": accent }}>
       {/* desktop sidebar */}
       <nav className="sidebar">
@@ -497,8 +493,8 @@ function App() {
         </div>
         <button className="nav-foot" onClick={() => setView("profile")}
           style={view === "profile" ? { background: "var(--surface-2)" } : {}}>
-          <div className="avatar" style={{ borderColor: accent }}>S</div>
-          <div className="avatar-meta"><div className="avatar-name">Sławek</div><div className="avatar-sub">Profile & sharing</div></div>
+          <div className="avatar" style={{ borderColor: accent }}>{me.initial || "S"}</div>
+          <div className="avatar-meta"><div className="avatar-name">{me.name || "User"}</div><div className="avatar-sub">Profile & sharing</div></div>
         </button>
       </nav>
 

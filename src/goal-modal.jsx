@@ -5,15 +5,18 @@ import React from 'react';
 import { areaById, LIFE_AREAS } from './goals-data.jsx';
 import { HABITS } from './data.jsx';
 import { Icon, hexA } from './components.jsx';
+import { useTranslation } from './i18n.jsx';
 
-const GOAL_TYPES = [
-  { id: "quant",     label: "Quantitative", icon: "trending", desc: "Hit a number" },
-  { id: "milestone", label: "Milestone",    icon: "flag",     desc: "Complete steps" },
-  { id: "habit",     label: "Habit-based",  icon: "repeat",   desc: "Repeat weekly" },
-];
 const GOAL_EMOJIS = ["🎯","📚","🏃","💰","🏦","🚀","💪","🌙","✍️","🎓","🎨","🧘","🏔️","🌱","🎸","📈"];
 
 function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
+  const { t } = useTranslation();
+  
+  const GOAL_TYPES = [
+    { id: "quant",     label: t("goal.type.quant"), icon: "trending", desc: t("goal.type.quantDesc") },
+    { id: "milestone", label: t("goal.type.mile"),  icon: "flag",     desc: t("goal.type.mileDesc") },
+    { id: "habit",     label: t("goal.type.habit"), icon: "repeat",   desc: t("goal.type.habitDesc") },
+  ];
   const [g, setG] = React.useState(() => ({
     linkedHabits: [], steps: [], logs: [], series: [], notes: "",
     target: 50, unit: "", startValue: 0, current: 0,
@@ -49,7 +52,7 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal wide goal-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-head">
-          <span className="modal-kicker">{isNew ? "New goal" : "Edit goal"}</span>
+          <span className="modal-kicker">{isNew ? t("goal.modal.new") : t("goal.modal.edit")}</span>
           <button className="icon-btn" onClick={onClose}><Icon name="x" size={18} /></button>
         </div>
 
@@ -58,7 +61,7 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
           <button className="gm-iconbtn" onClick={() => {
             const i = GOAL_EMOJIS.indexOf(g.icon); set("icon", GOAL_EMOJIS[(i + 1) % GOAL_EMOJIS.length]);
           }} title="Click to change icon">{g.icon || "🎯"}</button>
-          <input className="modal-label" placeholder="Name your goal" value={g.name || ""} autoFocus
+          <input className="modal-label" placeholder={t("goal.modal.namePlaceholder")} value={g.name || ""} autoFocus
             onChange={e => set("name", e.target.value)} />
         </div>
         <div className="emoji-grid gm-emoji">
@@ -69,7 +72,7 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
         </div>
 
         {/* type selector — the key decision */}
-        <div className="modal-section-label">Goal type</div>
+        <div className="modal-section-label">{t("goal.modal.typeLabel")}</div>
         <div className="type-sel">
           {GOAL_TYPES.map(t => (
             <button key={t.id} className={"type-card" + (g.type === t.id ? " on" : "")}
@@ -83,7 +86,7 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
         </div>
 
         {/* life area */}
-        <div className="modal-section-label">Life area</div>
+        <div className="modal-section-label">{t("goal.modal.areaLabel")}</div>
         <div className="cat-row">
           {LIFE_AREAS.map(a => (
             <button key={a.id} className={"cat-chip" + (g.areaId === a.id ? " on" : "")} onClick={() => set("areaId", a.id)}
@@ -94,7 +97,7 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
         </div>
 
         {/* deadline */}
-        <div className="modal-section-label">Deadline</div>
+        <div className="modal-section-label">{t("goal.modal.deadlineLabel")}</div>
         <div className="gm-deadline">
           <input className="time-select gm-date" type="date" value={g.deadline || ""}
             disabled={!g.deadline} onChange={e => set("deadline", e.target.value)} />
@@ -102,7 +105,7 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
             onClick={() => set("deadline", g.deadline ? null : "2026-12-31")}
             style={!g.deadline ? { borderColor: accent, color: accent } : {}}>
             <span className={"toggle sm" + (!g.deadline ? " on" : "")} style={!g.deadline ? { background: accent } : {}}><span className="toggle-knob" /></span>
-            No deadline
+            {t("goal.modal.noDeadline")}
           </button>
         </div>
 
@@ -111,17 +114,17 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
           <div className="gm-typefields">
             <div className="modal-row">
               <div style={{ flex: 1 }}>
-                <div className="modal-section-label">Target</div>
+                <div className="modal-section-label">{t("goal.modal.target")}</div>
                 <input className="time-select" type="number" placeholder="50" value={g.target ?? ""}
                   onChange={e => set("target", +e.target.value)} />
               </div>
               <div style={{ flex: 1 }}>
-                <div className="modal-section-label">Unit</div>
-                <input className="time-select" placeholder="books, km, zł…" value={g.unit || ""}
+                <div className="modal-section-label">{t("goal.modal.unit")}</div>
+                <input className="time-select" placeholder={t("goal.modal.unitPlaceholder")} value={g.unit || ""}
                   onChange={e => set("unit", e.target.value)} />
               </div>
               <div style={{ flex: 1 }}>
-                <div className="modal-section-label">Starting</div>
+                <div className="modal-section-label">{t("goal.modal.start")}</div>
                 <input className="time-select" type="number" placeholder="0" value={g.startValue ?? ""}
                   onChange={e => set("startValue", +e.target.value)} />
               </div>
@@ -131,7 +134,7 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
 
         {g.type === "milestone" && (
           <div className="gm-typefields">
-            <div className="modal-section-label">First steps</div>
+            <div className="modal-section-label">{t("goal.modal.firstSteps")}</div>
             <div className="gm-steps">
               {(g.steps || []).map((s, i) => (
                 <div key={s.id} className="gm-step">
@@ -142,7 +145,7 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
               ))}
               <div className="step-add">
                 <span className="step-add-plus"><Icon name="plus" size={15} stroke={2.4} /></span>
-                <input className="step-add-input" placeholder="Add a step…" value={stepDraft}
+                <input className="step-add-input" placeholder={t("goal.modal.addStep")} value={stepDraft}
                   onChange={e => setStepDraft(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") addStep(); }} />
               </div>
@@ -154,18 +157,18 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
           <div className="gm-typefields">
             <div className="modal-row" style={{ alignItems: "flex-end" }}>
               <div style={{ flex: 1 }}>
-                <div className="modal-section-label">Times per week</div>
+                <div className="modal-section-label">{t("goal.modal.perWeek")}</div>
                 <input className="time-select" type="number" min="1" max="7" value={g.weeklyTarget ?? 4}
                   onChange={e => set("weeklyTarget", +e.target.value)} />
               </div>
               <div style={{ flex: 2 }}>
-                <div className="modal-section-label">Link to a habit</div>
+                <div className="modal-section-label">{t("goal.modal.linkHabit")}</div>
                 <select className="time-select" value={g.habitId || ""}
                   onChange={e => {
                     const id = e.target.value; set("habitId", id);
                     if (id) set("linkedHabits", [...new Set([...(g.linkedHabits || []), id])]);
                   }}>
-                  <option value="">Choose a habit…</option>
+                  <option value="">{t("goal.modal.chooseHabit")}</option>
                   {HABITS.map(h => <option key={h.id} value={h.id}>{h.icon} {h.name}</option>)}
                 </select>
               </div>
@@ -176,7 +179,7 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
         {/* connected habits (quant + milestone) */}
         {g.type !== "habit" && (
           <>
-            <div className="modal-section-label">Connect habits <span className="ms-opt">optional</span></div>
+            <div className="modal-section-label">{t("goal.modal.connectHabits")} <span className="ms-opt">{t("goal.modal.optional")}</span></div>
             <div className="cat-row">
               {HABITS.map(h => (
                 <button key={h.id} className={"cat-chip" + ((g.linkedHabits || []).includes(h.id) ? " on" : "")}
@@ -192,19 +195,19 @@ function GoalModal({ goal, isNew, onSave, onDelete, onClose, accent }) {
         {/* notes */}
         {showNotes ? (
           <>
-            <div className="modal-section-label">Notes</div>
-            <textarea className="gm-notes" placeholder="Anything to remember…" value={g.notes || ""}
+            <div className="modal-section-label">{t("goal.modal.notes")}</div>
+            <textarea className="gm-notes" placeholder={t("goal.modal.notesPlaceholder")} value={g.notes || ""}
               onChange={e => set("notes", e.target.value)} />
           </>
         ) : (
-          <button className="gm-addnotes" onClick={() => setShowNotes(true)}><Icon name="plus" size={13} stroke={2.4} /> Add notes</button>
+          <button className="gm-addnotes" onClick={() => setShowNotes(true)}><Icon name="plus" size={13} stroke={2.4} /> {t("goal.modal.addNotes")}</button>
         )}
 
         <div className="modal-actions">
-          {!isNew && <button className="del-btn" onClick={() => onDelete(g.id)}><Icon name="trash" size={15} /> Delete</button>}
+          {!isNew && <button className="del-btn" onClick={() => onDelete(g.id)}><Icon name="trash" size={15} /> {t("goal.modal.delete")}</button>}
           <div style={{ flex: 1 }} />
-          <button className="ghost-btn" onClick={onClose}>Cancel</button>
-          <button className="save-btn" style={{ background: accent }} onClick={save}>{isNew ? "Create goal" : "Save"}</button>
+          <button className="ghost-btn" onClick={onClose}>{t("goal.modal.cancel")}</button>
+          <button className="save-btn" style={{ background: accent }} onClick={save}>{isNew ? t("goal.modal.create") : t("goal.modal.save")}</button>
         </div>
       </div>
     </div>

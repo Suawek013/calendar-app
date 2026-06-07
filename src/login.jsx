@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { supabase } from './supabase.js';
+import { useTranslation } from './i18n.jsx';
 
 function LoginView({ accent = "#3fb98a" }) {
+  const { t } = useTranslation();
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,29 +48,29 @@ function LoginView({ accent = "#3fb98a" }) {
           <span className="brand-name">Calmate</span>
         </div>
         
-        <h2 className="login-title">{isRegister ? "Create an account" : "Welcome back"}</h2>
+        <h2 className="login-title">{isRegister ? t("login.createAccount") : t("login.welcomeBack")}</h2>
         <p className="login-sub">
-          {isRegister ? "Sign up to start tracking your habits." : "Sign in to continue to your calendar."}
+          {isRegister ? t("login.signupSub") : t("login.signinSub")}
         </p>
 
         {error && <div className="login-error">{error}</div>}
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="login-field">
-            <label>Email address</label>
+            <label>{t("login.emailLabel")}</label>
             <input 
               type="email" 
-              placeholder="you@example.com"
+              placeholder={t("login.emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required 
             />
           </div>
           <div className="login-field">
-            <label>Password</label>
+            <label>{t("login.passwordLabel")}</label>
             <input 
               type="password" 
-              placeholder="••••••••"
+              placeholder={t("login.passwordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required 
@@ -76,14 +78,14 @@ function LoginView({ accent = "#3fb98a" }) {
             />
           </div>
           <button type="submit" className="login-btn" style={{ background: accent }} disabled={loading}>
-            {loading ? "Please wait..." : (isRegister ? "Sign Up" : "Sign In")}
+            {loading ? t("login.wait") : (isRegister ? t("login.signupBtn") : t("login.signinBtn"))}
           </button>
         </form>
 
         <div className="login-toggle">
-          {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
+          {isRegister ? t("login.toggleHave") : t("login.toggleDont")}{" "}
           <button type="button" className="ghost-btn-inline" style={{ color: accent }} onClick={() => { setIsRegister(!isRegister); setError(null); }}>
-            {isRegister ? "Sign in" : "Sign up"}
+            {isRegister ? t("login.toggleSignIn") : t("login.toggleSignUp")}
           </button>
         </div>
       </div>

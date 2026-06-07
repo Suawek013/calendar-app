@@ -7,6 +7,7 @@ import { habitById, historyFor, HABITS } from './data.jsx';
 import { Icon, hexA } from './components.jsx';
 import { parseDate, MONTHS, goalStatus, fmtNum, fmtCountdown, daysUntil, areaById, GOAL_YEAR, fmtDeadline } from './goals-data.jsx';
 import { StatusBadge, HabitStrip } from './goals.jsx';
+import { useTranslation } from './i18n.jsx';
 function GoalRing({ pct, color, size = 152, thickness = 14, big, sub }) {
   const r = (size - thickness) / 2, c = 2 * Math.PI * r;
   const len = Math.max(0, Math.min(1, pct)) * c;
@@ -28,6 +29,7 @@ function GoalRing({ pct, color, size = 152, thickness = 14, big, sub }) {
 
 // actual cumulative vs ideal-pace line
 function PaceChart({ goal, color }) {
+  const { t } = useTranslation();
   const W = 340, H = 150, padL = 10, padR = 10, padT = 14, padB = 22;
   const innerW = W - padL - padR, innerH = H - padT - padB;
   const maxX = 11; // Dec
@@ -71,10 +73,10 @@ function PaceChart({ goal, color }) {
       </svg>
       <div className="pace-legend">
         <span className="pl-item">
-          <svg width="18" height="6" style={{ overflow: "visible" }}><line x1="0" y1="3" x2="18" y2="3" stroke={color} strokeWidth="2.5" strokeLinecap="round" /></svg> Actual
+          <svg width="18" height="6" style={{ overflow: "visible" }}><line x1="0" y1="3" x2="18" y2="3" stroke={color} strokeWidth="2.5" strokeLinecap="round" /></svg> {t("gd.pace.actual")}
         </span>
         <span className="pl-item">
-          <svg width="18" height="6" style={{ overflow: "visible" }}><line x1="0" y1="3" x2="18" y2="3" stroke="var(--muted)" strokeWidth="2" strokeDasharray="4 3" /></svg> Target pace
+          <svg width="18" height="6" style={{ overflow: "visible" }}><line x1="0" y1="3" x2="18" y2="3" stroke="var(--muted)" strokeWidth="2" strokeDasharray="4 3" /></svg> {t("gd.pace.target")}
         </span>
       </div>
     </div>
@@ -82,54 +84,54 @@ function PaceChart({ goal, color }) {
 }
 
 function SmartCallout({ goal, color }) {
+  const { t } = useTranslation();
   const st = goalStatus(goal);
   let body, tone = st.status;
 
   if (st.kind === "quant") {
     const books = goal.unit === "books";
     const needPhrase = books
-      ? <>about <b>1 {goal.unit.replace(/s$/,"")} every {Math.max(1, Math.round(st.reqDaysPerUnit))} days</b></>
-      : <><b>{fmtNum(st.reqRate * 30)} {goal.unit}/month</b></>;
+      ? <>{t("gd.c.q.needBooks", {unit: goal.unit.replace(/s$/,""), days: Math.max(1, Math.round(st.reqDaysPerUnit))})}</>
+      : <><b>{t("gd.c.q.needReg", {rate: fmtNum(st.reqRate * 30), unit: goal.unit})}</b></>;
     const curPhrase = books
-      ? <>1 every <b>{Math.round(st.curDaysPerUnit)} days</b></>
-      : <><b>{fmtNum(st.curRate * 30)} {goal.unit}/month</b></>;
+      ? <>{t("gd.c.q.curBooks", {days: Math.round(st.curDaysPerUnit)})}</>
+      : <><b>{t("gd.c.q.curReg", {rate: fmtNum(st.curRate * 30), unit: goal.unit})}</b></>;
     const off = Math.abs(st.behindUnits);
     body = (
       <>
-        You've logged <b>{fmtNum(goal.current)} of {fmtNum(goal.target)} {goal.unit}</b>.{" "}
-        <b>{st.monthsLeft} months</b> remaining. To finish on time you need {needPhrase} — you're
-        currently managing {curPhrase}.{" "}
+        {t("gd.c.q.log1")} <b>{fmtNum(goal.current)} {t("gd.c.q.log2")} {fmtNum(goal.target)} {goal.unit}</b>.{" "}
+        <b>{st.monthsLeft} {t("gd.c.q.months")}</b> {t("gd.c.q.rem")}. {t("gd.c.q.finish")} {needPhrase} — {t("gd.c.q.managing")} {curPhrase}.{" "}
         {st.status === "done"
-          ? <>You've already hit the target. 🎉</>
+          ? <>{t("gd.c.q.done")}</>
           : st.status === "behind"
-            ? <>That puts you <b>{fmtNum(off)} {goal.unit} behind pace.</b></>
-            : <>You're <b>{fmtNum(off)} {goal.unit} ahead of pace.</b></>}
+            ? <>{t("gd.c.q.behind1")} <b>{fmtNum(off)} {goal.unit} {t("gd.c.q.behind2")}</b></>
+            : <>{t("gd.c.q.ahead1")} <b>{fmtNum(off)} {goal.unit} {t("gd.c.q.ahead2")}</b></>}
       </>
     );
   } else if (st.kind === "habit") {
     body = (
       <>
-        You're aiming for <b>{st.target} sessions per week</b>. Last {st.weeks.length} weeks:{" "}
+        {t("gd.c.h.aiming")} <b>{st.target} {t("gd.c.h.perWeek")}</b>. {t("gd.c.h.last")} {st.weeks.length} {t("gd.c.h.weeks")}{" "}
         <b>{st.weeks.join(" · ")}</b>.{" "}
         {st.deficit > 0
-          ? <>You're <b>{st.deficit} {st.deficit === 1 ? "session" : "sessions"} under target</b> across the month{st.slight ? " — slightly behind." : "."}</>
+          ? <>{t("gd.c.h.under1")} <b>{st.deficit} {st.deficit === 1 ? t("gd.c.h.under2") : t("gd.c.h.underN2")}</b> {t("gd.c.h.across")}{st.slight ? t("gd.c.h.slight") : "."}</>
           : st.surplus > 0
-            ? <>That's <b>{st.surplus} over target</b> — comfortably ahead.</>
-            : <>You're <b>right on pace.</b></>}
+            ? <>{t("gd.c.h.over1")} <b>{st.surplus} {t("gd.c.h.over2")}</b></>
+            : <><b>{t("gd.c.h.on")}</b></>}
       </>
     );
   } else {
     const dl = fmtCountdown(goal.deadline);
     body = (
       <>
-        <b>{st.done} of {st.total} steps</b> complete. Deadline <b>{dl}</b>.{" "}
+        <b>{st.done} {t("gd.c.m.of")} {st.total} {t("gd.c.m.complete")}</b> {t("gd.c.m.deadline")} <b>{dl}</b>.{" "}
         {st.status === "done"
-          ? <>Every step is done — nicely finished. ✅</>
+          ? <>{t("gd.c.m.done")}</>
           : st.overdue > 0
-            ? <><b>{st.overdue} {st.overdue === 1 ? "step is" : "steps are"} overdue.</b> {st.noDue > 0 && <>{st.noDue} more have no due date.</>}</>
+            ? <><b>{st.overdue} {st.overdue === 1 ? t("gd.c.m.overdue1") : t("gd.c.m.overdueN")}</b> {st.noDue > 0 && <>{st.noDue} {t("gd.c.m.moreNoDue")}</>}</>
             : st.noDue > 0
-              ? <><b>{st.noDue} {st.noDue === 1 ? "step has" : "steps have"} no due date set</b> — consider scheduling them.</>
-              : <>You're on track to finish in time.</>}
+              ? <><b>{st.noDue} {st.noDue === 1 ? t("gd.c.m.noDue1") : t("gd.c.m.noDueN")}</b> {t("gd.c.m.consider")}</>
+              : <>{t("gd.c.m.on")}</>}
       </>
     );
   }
@@ -141,7 +143,7 @@ function SmartCallout({ goal, color }) {
           <Icon name={st.status === "behind" ? "gauge" : st.status === "done" ? "check" : "trending"} size={16} stroke={2.4} />
         </span>
         <span className="callout-kicker">
-          {st.status === "done" ? "Completed" : st.status === "behind" ? "Behind pace" : st.status === "ahead" ? "Ahead of pace" : "On track"}
+          {st.status === "done" ? t("goals.status.done") : st.status === "behind" ? t("goals.status.behind") : st.status === "ahead" ? t("goals.status.ahead") : t("goals.status.on")}
         </span>
       </div>
       <p className="callout-body">{body}</p>
@@ -151,6 +153,7 @@ function SmartCallout({ goal, color }) {
 
 // ---- logging (quant) ----
 function LogForm({ color, onLog }) {
+  const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
   const [value, setValue] = React.useState("");
   const [note, setNote] = React.useState("");
@@ -163,14 +166,14 @@ function LogForm({ color, onLog }) {
   };
   if (!open) return (
     <button className="log-add" style={{ borderColor: hexA(color, 0.5), color }} onClick={() => setOpen(true)}>
-      <Icon name="plus" size={15} stroke={2.5} /> Log progress
+      <Icon name="plus" size={15} stroke={2.5} /> {t("gd.log.add")}
     </button>
   );
   return (
     <div className="log-form">
-      <input className="lf-value" type="number" placeholder="Amount" value={value} autoFocus
+      <input className="lf-value" type="number" placeholder={t("gd.log.amt")} value={value} autoFocus
         onChange={e => setValue(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} />
-      <input className="lf-note" placeholder="Note (optional)" value={note}
+      <input className="lf-note" placeholder={t("gd.log.note")} value={note}
         onChange={e => setNote(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} />
       <input className="lf-date" type="date" value={date} onChange={e => setDate(e.target.value)} />
       <button className="lf-go" style={{ background: color }} onClick={submit}><Icon name="check" size={15} stroke={2.8} /></button>
@@ -180,11 +183,12 @@ function LogForm({ color, onLog }) {
 }
 
 function LogRow({ log, unit, color }) {
+  const { t } = useTranslation();
   const d = parseDate(log.date);
   return (
     <div className="log-row">
       <span className="log-ico">{log.icon || "•"}</span>
-      <span className="log-main">{log.note || "Progress"}</span>
+      <span className="log-main">{log.note || t("gd.log.prog")}</span>
       <span className="log-val" style={{ color }}>+{fmtNum(log.value)} {unit}</span>
       <span className="log-date">{MONTHS[d.getMonth()]} {d.getDate()}</span>
     </div>
@@ -193,6 +197,7 @@ function LogRow({ log, unit, color }) {
 
 // ---- steps (milestone) ----
 function StepRow({ step, color, idx, onToggle, onDrag }) {
+  const { t } = useTranslation();
   const overdue = !step.done && step.due && daysUntil(step.due) < 0;
   return (
     <div className="step-row" draggable onDragStart={e => onDrag.start(e, idx)}
@@ -210,12 +215,13 @@ function StepRow({ step, color, idx, onToggle, onDrag }) {
           <Icon name="clock" size={11} /> {MONTHS[parseDate(step.due).getMonth()]} {parseDate(step.due).getDate()}
         </span>
       )}
-      {!step.done && !step.due && <span className="step-nodue">no date</span>}
+      {!step.done && !step.due && <span className="step-nodue">{t("gd.step.noDate")}</span>}
     </div>
   );
 }
 
 function StepsSection({ goal, color, onToggleStep, onAddStep, onReorderSteps }) {
+  const { t } = useTranslation();
   const [adding, setAdding] = React.useState("");
   const [showDone, setShowDone] = React.useState(false);
   const dragIx = React.useRef(null);
@@ -235,14 +241,14 @@ function StepsSection({ goal, color, onToggleStep, onAddStep, onReorderSteps }) 
       ))}
       <div className="step-add">
         <span className="step-add-plus"><Icon name="plus" size={15} stroke={2.4} /></span>
-        <input className="step-add-input" placeholder="Add a step…" value={adding}
+        <input className="step-add-input" placeholder={t("gd.step.add")} value={adding}
           onChange={e => setAdding(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") commit(); }} onBlur={commit} />
       </div>
       {done.length > 0 && (
         <>
           <button className="steps-toggle" onClick={() => setShowDone(v => !v)}>
-            <Icon name={showDone ? "chevD" : "chevR"} size={14} /> {done.length} completed
+            <Icon name={showDone ? "chevD" : "chevR"} size={14} /> {done.length} {t("gd.step.comp")}
           </button>
           {showDone && goal.steps.map((s, i) => s.done && (
             <StepRow key={s.id} step={s} idx={i} color={color} onToggle={onToggleStep} onDrag={drag} />
@@ -255,6 +261,7 @@ function StepsSection({ goal, color, onToggleStep, onAddStep, onReorderSteps }) 
 
 // ---- connected habits (all types) ----
 function ConnectedHabits({ goal, color, onLink, onUnlink }) {
+  const { t } = useTranslation();
   const [picking, setPicking] = React.useState(false);
   const linked = (goal.linkedHabits || []).map(habitById).filter(Boolean);
   const available = HABITS.filter(h => !(goal.linkedHabits || []).includes(h.id));
@@ -262,8 +269,8 @@ function ConnectedHabits({ goal, color, onLink, onUnlink }) {
     <div className="linked">
       {linked.length === 0 && !picking && (
         <div className="linked-empty">
-          <span>No habits linked yet.</span>
-          <span className="linked-empty-sub">Want a recurring habit to support this goal?</span>
+          <span>{t("gd.link.empty")}</span>
+          <span className="linked-empty-sub">{t("gd.link.sub")}</span>
         </div>
       )}
       {linked.map(h => {
@@ -274,24 +281,24 @@ function ConnectedHabits({ goal, color, onLink, onUnlink }) {
             <span className="linked-dot" style={{ background: h.color }} />
             <span className="linked-ico">{h.icon}</span>
             <span className="linked-name">{h.name}</span>
-            <span className="linked-stat">contributing <b>{sessions}</b> sessions this month</span>
+            <span className="linked-stat">{t("gd.link.contrib")} <b>{sessions}</b> {t("gd.link.sess")}</span>
             <button className="linked-x" onClick={() => onUnlink(h.id)} title="Unlink"><Icon name="x" size={14} /></button>
           </div>
         );
       })}
       {picking ? (
         <div className="habit-picker">
-          {available.length === 0 && <div className="hp-empty">All habits already linked.</div>}
+          {available.length === 0 && <div className="hp-empty">{t("gd.link.all")}</div>}
           {available.map(h => (
             <button key={h.id} className="hp-item" onClick={() => { onLink(h.id); setPicking(false); }}>
               <span className="linked-dot" style={{ background: h.color }} />{h.icon} {h.name}
             </button>
           ))}
-          <button className="hp-cancel" onClick={() => setPicking(false)}>Cancel</button>
+          <button className="hp-cancel" onClick={() => setPicking(false)}>{t("gd.link.cancel")}</button>
         </div>
       ) : (
         <button className="linked-add" style={{ borderColor: hexA(color, 0.5), color }} onClick={() => setPicking(true)}>
-          <Icon name="link" size={14} /> Link a habit
+          <Icon name="link" size={14} /> {t("gd.link.add")}
         </button>
       )}
     </div>
@@ -299,6 +306,7 @@ function ConnectedHabits({ goal, color, onLink, onUnlink }) {
 }
 
 function GoalDetail({ goal, onBack, onEdit, onLog, onToggleStep, onAddStep, onReorderSteps, onLink, onUnlink, accent }) {
+  const { t } = useTranslation();
   const area = areaById(goal.areaId);
   const color = area.color;
   const st = goalStatus(goal);
@@ -311,8 +319,8 @@ function GoalDetail({ goal, onBack, onEdit, onLog, onToggleStep, onAddStep, onRe
   return (
     <div className="goal-detail">
       <div className="gd-bar">
-        <button className="gd-back" onClick={onBack}><Icon name="arrowLeft" size={17} /> All goals</button>
-        <button className="ghost-btn gd-edit" onClick={() => onEdit(goal.id)}><Icon name="edit" size={14} /> Edit</button>
+        <button className="gd-back" onClick={onBack}><Icon name="arrowLeft" size={17} /> {t("gd.back")}</button>
+        <button className="ghost-btn gd-edit" onClick={() => onEdit(goal.id)}><Icon name="edit" size={14} /> {t("gd.edit")}</button>
       </div>
 
       <header className="gd-head">
@@ -338,24 +346,24 @@ function GoalDetail({ goal, onBack, onEdit, onLog, onToggleStep, onAddStep, onRe
               <div className="gd-ring-unit">{goal.unit}</div>
             </section>
             <section className="dash-block gd-chartcard">
-              <div className="dash-block-head"><h2 className="sec-title">Progress vs pace</h2><span className="sec-sub">{GOAL_YEAR}</span></div>
+              <div className="dash-block-head"><h2 className="sec-title">{t("gd.chart.title")}</h2><span className="sec-sub">{GOAL_YEAR}</span></div>
               <PaceChart goal={goal} color={color} />
             </section>
           </div>
 
           <section className="dash-block">
             <div className="dash-block-head">
-              <h2 className="sec-title">Log</h2>
+              <h2 className="sec-title">{t("gd.log.title")}</h2>
               <div className="gd-log-tools">
                 <select className="month-filter" value={month} onChange={e => setMonth(e.target.value)}>
-                  <option value="all">All months</option>
+                  <option value="all">{t("gd.log.all")}</option>
                   {logMonths.map(m => <option key={m} value={m}>{MONTHS[m]}</option>)}
                 </select>
                 <LogForm color={color} onLog={onLog} />
               </div>
             </div>
             <div className="log-list">
-              {shownLogs.length === 0 && <div className="log-empty">No entries{month !== "all" ? " this month" : " yet"}.</div>}
+              {shownLogs.length === 0 && <div className="log-empty">{month !== "all" ? t("gd.log.emptyMonth") : t("gd.log.emptyAll")}</div>}
               {shownLogs.map((l, i) => <LogRow key={i} log={l} unit={goal.unit} color={color} />)}
             </div>
           </section>
@@ -364,8 +372,8 @@ function GoalDetail({ goal, onBack, onEdit, onLog, onToggleStep, onAddStep, onRe
 
       {st.kind === "milestone" && (
         <section className="dash-block">
-          <div className="dash-block-head"><h2 className="sec-title">Steps</h2>
-            <span className="sec-sub">{st.done}/{st.total} done</span></div>
+          <div className="dash-block-head"><h2 className="sec-title">{t("gd.steps.title")}</h2>
+            <span className="sec-sub">{t("gd.steps.sub", {done: st.done, total: st.total})}</span></div>
           <StepsSection goal={goal} color={color} onToggleStep={onToggleStep}
             onAddStep={onAddStep} onReorderSteps={onReorderSteps} />
         </section>
@@ -373,27 +381,27 @@ function GoalDetail({ goal, onBack, onEdit, onLog, onToggleStep, onAddStep, onRe
 
       {st.kind === "habit" && (
         <section className="dash-block">
-          <div className="dash-block-head"><h2 className="sec-title">Weekly consistency</h2>
-            <span className="sec-sub">last {st.weeks.length} weeks</span></div>
+          <div className="dash-block-head"><h2 className="sec-title">{t("gd.habit.title")}</h2>
+            <span className="sec-sub">{t("gd.habit.last", {count: st.weeks.length})}</span></div>
           <div className="gd-habit">
             <div className="gd-habit-strip"><HabitStrip weeks={st.weeks} target={st.target} color={color} /></div>
             <div className="gd-habit-side">
               <div className="ghs-num" style={{ color }}>{st.sessionsThisMonth}</div>
-              <div className="ghs-lbl">sessions this month · target {st.targetTotal}</div>
+              <div className="ghs-lbl">{t("gd.habit.sess", {target: st.targetTotal})}</div>
             </div>
           </div>
         </section>
       )}
 
       <section className="dash-block">
-        <div className="dash-block-head"><h2 className="sec-title">Connected habits</h2>
-          <span className="sec-sub">tracked from calendar</span></div>
+        <div className="dash-block-head"><h2 className="sec-title">{t("gd.linkTitle")}</h2>
+          <span className="sec-sub">{t("gd.linkSub")}</span></div>
         <ConnectedHabits goal={goal} color={color} onLink={onLink} onUnlink={onUnlink} />
       </section>
 
       {goal.notes && (
         <section className="dash-block gd-notes">
-          <div className="dash-block-head"><h2 className="sec-title">Notes</h2></div>
+          <div className="dash-block-head"><h2 className="sec-title">{t("gd.notes")}</h2></div>
           <p className="gd-notes-body">{goal.notes}</p>
         </section>
       )}

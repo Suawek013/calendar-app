@@ -37,7 +37,7 @@ button{font-family:inherit}
 .nav-item.on{background:var(--surface-2)}
 .nav-active{position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:18px;border-radius:0 3px 3px 0}
 .nav-foot{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 8px;border-top:1px solid var(--border);
-  background:transparent;border-left:none;border-right:none;border-bottom:none;width:100%;cursor:pointer;border-radius:0 0 4px 4px;text-align:left}
+  background:transparent;border-left:none;border-right:none;border-bottom:none;width:100%;cursor:pointer;border-radius:0 0 4px 4px;text-align:left;color:var(--text)}
 .nav-foot:hover{background:var(--surface-2)}
 .avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   background:var(--surface-3);border:1.5px solid;font-family:var(--head);font-weight:600;font-size:14px}

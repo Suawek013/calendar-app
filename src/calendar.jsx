@@ -6,6 +6,7 @@ import React from 'react';
 import { GRID_END, GRID_START, weekDates, weekColsOrder, habitById, DAYS, min12, TODAY_INDEX, HABITS } from './data.jsx';
 import { Icon, StatusDot, hexA } from './components.jsx';
 import { areaById, goalStatus, fmtNum } from './goals-data.jsx';
+import { useTranslation } from './i18n.jsx';
 const GUTTER = 58;
 const MOD = (typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)) ? "\u2318" : "Ctrl";
 
@@ -16,6 +17,7 @@ function CalendarView({
   readOnly, overlayBlocks, partner, cals, activeCal, onPickCal, onOpenProfile,
   overlayOn, setOverlay, partnerEnabled, goalsByHabit,
 }) {
+  const { t } = useTranslation();
   const SLOT = slot;
   const totalSlots = (GRID_END - GRID_START) / 30;
   const totalH = totalSlots * SLOT;
@@ -55,20 +57,20 @@ function CalendarView({
     const h = habitById(b.habitId) || {};
     setClipboard({ habitId: b.habitId, label: b.label, sublabel: b.sublabel, dur: b.dur,
       color: b.color || h.color, icon: b.icon || h.icon });
-    flash(readOnly ? `Copied “${b.label}” — open your calendar to paste` : `Copied “${b.label}”`);
+    flash(readOnly ? t("cal.copied.ro", {label: b.label}) : t("cal.copied", {label: b.label}));
   }
   function pasteAt(cell) {
     if (!clipboard || !cell) return;
     const dur = clipboard.dur || 60;
     const start = Math.max(GRID_START, Math.min(GRID_END - dur, cell.start));
     onCreateBlock(weekOffset, { ...clipboard, day: cell.day, start, status: "planned" });
-    flash(`Pasted “${clipboard.label}”`);
+    flash(t("cal.pasted", {label: clipboard.label}));
   }
   function duplicate(b) {
     const start = Math.min(GRID_END - b.dur, b.start + b.dur);
     onCreateBlock(weekOffset, { habitId: b.habitId, label: b.label, sublabel: b.sublabel,
       color: b.color, icon: b.icon, dur: b.dur, day: b.day, start, status: "planned" });
-    flash(`Duplicated “${b.label}”`);
+    flash(t("cal.duplicated", {label: b.label}));
   }
   function cutBlock(b) { copyBlock(b); onDelete(b.id); }
 
@@ -89,7 +91,7 @@ function CalendarView({
     dragInfo.current = {
       id: b.id, mode, dur: b.dur,
       grabDX: (e.clientX - g.left) - blockLeft,
-      grabDY: (e.clientY - g.top + g.scroll) - blockTop,
+      grabDY: (e.clientY - g.top) - blockTop,
       startX: e.clientX, startY: e.clientY,
     };
     setDrag({ id: b.id, day: b.day, start: b.start, dur: b.dur, moved: false, mode });
@@ -104,7 +106,7 @@ function CalendarView({
     const moved = Math.abs(e.clientX - di.startX) > 4 || Math.abs(e.clientY - di.startY) > 4;
     if (di.mode === "move") {
       const px = (e.clientX - g.left) - di.grabDX;
-      const py = (e.clientY - g.top + g.scroll) - di.grabDY;
+      const py = (e.clientY - g.top) - di.grabDY;
       let ci = Math.round((px - GUTTER) / colW); ci = Math.max(0, Math.min(6, ci));
       const day = order[ci];
       let slotIx = Math.round(py / SLOT);
@@ -113,7 +115,7 @@ function CalendarView({
       previewRef.current = { day, start, dur: di.dur, moved };
       setDrag(d => ({ ...d, day, start, moved }));
     } else {
-      const py = (e.clientY - g.top + g.scroll);
+      const py = (e.clientY - g.top);
       const b = blocks.find(x => x.id === di.id);
       const topPx = (b.start - GRID_START) / 30 * SLOT;
       let slots = Math.max(1, Math.round((py - topPx) / SLOT));
@@ -144,7 +146,7 @@ function CalendarView({
 
   function cellAt(e, day) {
     const g = geom();
-    const py = (e.clientY - g.top + g.scroll);
+    const py = (e.clientY - g.top);
     let slotIx = Math.floor(py / SLOT);
     let start = Math.max(GRID_START, Math.min(GRID_END - 30, GRID_START + slotIx * 30));
     return { day, start };
@@ -204,9 +206,9 @@ function CalendarView({
         <div className="cal-ro-banner" style={{ borderColor: hexA(partner.color, 0.45) }}>
           <span className="rob-l">
             <span className="cp-av sm" style={{ background: partner.color }}>{partner.initial}</span>
-            Viewing <b>{partner.name}’s</b> calendar · view only
+            {t("cal.ro.viewing")} <b>{t("cal.ro.calOf", {name: partner.name})}</b> · {t("cal.ro.viewOnly")}
           </span>
-          <span className="rob-hint"><Icon name="copy" size={13} /> Right-click any block to copy it into your week</span>
+          <span className="rob-hint"><Icon name="copy" size={13} /> {t("cal.ro.hint")}</span>
         </div>
       )}
 
@@ -303,6 +305,7 @@ function CalendarView({
 }
 
 function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, onDown, onStatus, onCtx, onHover, goals }) {
+  const { t } = useTranslation();
   const h = habitById(b.habitId) || {};
   const color = b.color || h.color || "#7d8aa0";
   const icon = b.icon || h.icon || "";
@@ -352,7 +355,7 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, onDo
         const gColor = areaById(goals[0].areaId).color;
         const gs0 = goalStatus(goals[0]);
         const prog = gs0.kind === "quant" ? ` · ${fmtNum(goals[0].current)}/${fmtNum(goals[0].target)}` : "";
-        const tip = "Contributing to: " + goals.map(g => g.name).join(", ") + prog;
+        const tip = t("cal.block.contributing", {goals: goals.map(g => g.name).join(", "), prog});
         return <span className="cal-goal-dot" style={{ background: gColor }} title={tip} />;
       })()}
       {!readOnly && <div className="cal-resize" onPointerDown={(e) => onDown(e, b, "resize")} />}
@@ -362,13 +365,14 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, onDo
 
 function CalToolbar({ weekOffset, setWeekOffset, dates, onReset, accent, readOnly, partner,
   cals, activeCal, onPickCal, onOpenProfile, overlayOn, setOverlay, partnerEnabled }) {
+  const { t } = useTranslation();
   const start = dates[0], end = dates[6];
   const mo = (d) => d.toLocaleString("en-US", { month: "short" });
   const range = mo(start) === mo(end)
     ? `${mo(start)} ${start.getDate()} – ${end.getDate()}`
     : `${mo(start)} ${start.getDate()} – ${mo(end)} ${end.getDate()}`;
-  const sub = readOnly ? `${partner.name}’s week`
-    : weekOffset === 0 ? "This week" : weekOffset > 0 ? `+${weekOffset}w · planning ahead` : `${weekOffset}w ago`;
+  const sub = readOnly ? t("cal.tb.partnerWeek", {name: partner.name})
+    : weekOffset === 0 ? t("cal.tb.thisWeek") : weekOffset > 0 ? t("cal.tb.planning", {offset: weekOffset}) : t("cal.tb.ago", {offset: Math.abs(weekOffset)});
   return (
     <div className="cal-toolbar">
       <div className="cal-tb-left">
@@ -383,14 +387,14 @@ function CalToolbar({ weekOffset, setWeekOffset, dates, onReset, accent, readOnl
           <button className={"overlay-toggle" + (overlayOn ? " on" : "")} onClick={() => setOverlay(!overlayOn)}
             title="Show partner's busy times on your week">
             <span className="ot-av" style={{ background: partner.color }}>{partner.initial}</span>
-            <span className="ot-lbl">Show {partner.name}</span>
+            <span className="ot-lbl">{t("cal.tb.showPartner", {name: partner.name})}</span>
             <span className={"ot-sw" + (overlayOn ? " on" : "")} style={overlayOn ? { background: partner.color } : {}}><span className="ot-knob" /></span>
           </button>
         )}
-        {!readOnly && <button className="ghost-btn" onClick={onReset} title="Restore auto-generated blocks">Reset to template</button>}
+        {!readOnly && <button className="ghost-btn" onClick={onReset} title="Restore auto-generated blocks">{t("cal.tb.reset")}</button>}
         <div className="cal-nav">
           <button onClick={() => setWeekOffset(weekOffset - 1)}><Icon name="chevL" size={18} /></button>
-          <button className="cal-today-btn" onClick={() => setWeekOffset(0)}>Today</button>
+          <button className="cal-today-btn" onClick={() => setWeekOffset(0)}>{t("cal.tb.today")}</button>
           <button onClick={() => setWeekOffset(weekOffset + 1)}><Icon name="chevR" size={18} /></button>
         </div>
       </div>
@@ -399,6 +403,7 @@ function CalToolbar({ weekOffset, setWeekOffset, dates, onReset, accent, readOnl
 }
 
 function CalPicker({ cals, activeCal, onPick, onOpenProfile, accent }) {
+  const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef(null);
   React.useEffect(() => {
@@ -412,23 +417,23 @@ function CalPicker({ cals, activeCal, onPick, onOpenProfile, accent }) {
     <div className="cal-picker" ref={ref}>
       <button className="cal-picker-btn" onClick={() => setOpen(o => !o)}>
         <span className="cp-av" style={{ background: cur.color }}>{cur.initial}</span>
-        <span className="cp-name">{cur.name}{cur.access !== "owner" && <span className="cp-ro">view only</span>}</span>
+        <span className="cp-name">{cur.name}{cur.access !== "owner" && <span className="cp-ro">{t("cal.picker.viewOnly")}</span>}</span>
         <Icon name="chevD" size={15} style={{ color: "var(--muted)" }} />
       </button>
       {open && (
         <div className="cal-picker-menu">
-          <div className="cpm-label">Calendars</div>
+          <div className="cpm-label">{t("cal.picker.cals")}</div>
           {cals.map(c => (
             <button key={c.id} className={"cpm-item" + (c.id === activeCal ? " on" : "")}
               onClick={() => { onPick(c.id); setOpen(false); }}>
               <span className="cp-av sm" style={{ background: c.color }}>{c.initial}</span>
-              <span className="cpm-name">{c.name}<span className="cpm-sub">{c.access === "owner" ? "You · editable" : "Shared · view only"}</span></span>
+              <span className="cpm-name">{c.name}<span className="cpm-sub">{c.access === "owner" ? t("cal.picker.owner") : t("cal.picker.shared")}</span></span>
               {c.id === activeCal && <Icon name="check" size={15} style={{ color: accent }} />}
             </button>
           ))}
           <div className="cpm-div" />
           <button className="cpm-manage" onClick={() => { setOpen(false); onOpenProfile(); }}>
-            <Icon name="share" size={14} /> Manage sharing
+            <Icon name="share" size={14} /> {t("cal.picker.manage")}
           </button>
         </div>
       )}
@@ -437,7 +442,7 @@ function CalPicker({ cals, activeCal, onPick, onOpenProfile, accent }) {
 }
 
 function QuickAdd({ info, onClose, onAdd, accent }) {
-  const [sel, setSel] = React.useState(HABITS.length > 0 ? HABITS[0].id : null);
+  const { t } = useTranslation();
   const ref = React.useRef(null);
   React.useEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
@@ -449,7 +454,7 @@ function QuickAdd({ info, onClose, onAdd, accent }) {
   if (HABITS.length === 0) {
     return (
       <div ref={ref} className="quickadd" style={{ left: x, top: info.y + 8, padding: 15, color: "var(--text)" }}>
-        Dodaj najpierw nawyk w zakładce Habits!
+        {t("cal.qa.noHabits")}
       </div>
     );
   }
@@ -459,46 +464,44 @@ function QuickAdd({ info, onClose, onAdd, accent }) {
       <div className="qa-time">{min12(info.start)} · {DAYS[info.day]}</div>
       <div className="qa-grid">
         {HABITS.map(h => (
-          <button key={h.id} className={"qa-pill" + (sel === h.id ? " on" : "")}
-            onClick={() => setSel(h.id)}
-            style={sel === h.id ? { borderColor: h.color, background: hexA(h.color, 0.16) } : {}}>
+          <button key={h.id} className="qa-pill"
+            onClick={() => onAdd(h.id)}
+            style={{ borderColor: "transparent", background: hexA(h.color, 0.16) }}>
             <span className="qa-swatch" style={{ background: h.color }} />{h.icon} {h.name}
           </button>
         ))}
       </div>
-      <button className="qa-add" style={{ background: accent }} onClick={() => onAdd(sel)}>
-        Add block <Icon name="plus" size={15} stroke={2.6} />
-      </button>
     </div>
   );
 }
 
 function ContextMenu({ menu, accent, hasClip, clip, readOnly, onClose, onCopy, onDuplicate, onCut, onPaste, onEdit, onStatus, onDelete, onNew }) {
+  const { t } = useTranslation();
   let items = [];
   if (menu.kind === "block") {
     const b = menu.block;
     if (readOnly) {
-      items = [{ icon: "copy", label: "Copy to my calendar", hint: MOD + " C", onClick: () => onCopy(b) }];
+      items = [{ icon: "copy", label: t("cal.ctx.copyToMy"), hint: MOD + " C", onClick: () => onCopy(b) }];
     } else {
       items = [
-        { icon: "copy", label: "Copy", hint: MOD + " C", onClick: () => onCopy(b) },
-        { icon: "copy", label: "Duplicate", onClick: () => onDuplicate(b) },
-        { icon: "x", label: "Cut", hint: MOD + " X", onClick: () => onCut(b) },
+        { icon: "copy", label: t("cal.ctx.copy"), hint: MOD + " C", onClick: () => onCopy(b) },
+        { icon: "copy", label: t("cal.ctx.duplicate"), onClick: () => onDuplicate(b) },
+        { icon: "x", label: t("cal.ctx.cut"), hint: MOD + " X", onClick: () => onCut(b) },
       ];
-      if (hasClip) items.push({ icon: "paste", label: "Paste below", onClick: () => onPaste({ day: b.day, start: Math.min(GRID_END - (clip.dur || 60), b.start + b.dur) }) });
+      if (hasClip) items.push({ icon: "paste", label: t("cal.ctx.pasteBelow"), onClick: () => onPaste({ day: b.day, start: Math.min(GRID_END - (clip.dur || 60), b.start + b.dur) }) });
       items.push("div");
-      items.push({ icon: "edit", label: "Edit\u2026", onClick: () => onEdit(b.id) });
-      if (b.status !== "done") items.push({ icon: "check", label: "Mark as done", onClick: () => onStatus(b, "done") });
-      if (b.status !== "skipped") items.push({ icon: "minus", label: "Mark as skipped", onClick: () => onStatus(b, "skipped") });
-      if (b.status !== "planned") items.push({ icon: "clock", label: "Mark as planned", onClick: () => onStatus(b, "planned") });
+      items.push({ icon: "edit", label: t("cal.ctx.edit"), onClick: () => onEdit(b.id) });
+      if (b.status !== "done") items.push({ icon: "check", label: t("cal.ctx.markDone"), onClick: () => onStatus(b, "done") });
+      if (b.status !== "skipped") items.push({ icon: "minus", label: t("cal.ctx.markSkipped"), onClick: () => onStatus(b, "skipped") });
+      if (b.status !== "planned") items.push({ icon: "clock", label: t("cal.ctx.markPlanned"), onClick: () => onStatus(b, "planned") });
       items.push("div");
-      items.push({ icon: "trash", label: "Delete", hint: "\u232b", danger: true, onClick: () => onDelete(b.id) });
+      items.push({ icon: "trash", label: t("cal.ctx.delete"), hint: "\u232b", danger: true, onClick: () => onDelete(b.id) });
     }
   } else {
     items = [
-      { icon: "paste", label: hasClip ? `Paste “${clip.label}” here` : "Paste", hint: MOD + " V",
+      { icon: "paste", label: hasClip ? t("cal.ctx.pasteHere", {label: clip.label}) : t("cal.ctx.paste"), hint: MOD + " V",
         disabled: !hasClip, onClick: () => onPaste({ day: menu.day, start: menu.start }) },
-      { icon: "plus", label: "New block here", onClick: () => onNew(menu.day, menu.start, menu.x, menu.y) },
+      { icon: "plus", label: t("cal.ctx.newBlock"), onClick: () => onNew(menu.day, menu.start, menu.x, menu.y) },
     ];
   }
 
