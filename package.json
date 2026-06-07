@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
+    "emoji-picker-react": "^4.19.1",
     "lucide-react": "^0.394.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

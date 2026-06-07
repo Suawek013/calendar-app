@@ -8,6 +8,7 @@ import { ColorSwatches } from './modal.jsx';
 import { useTranslation } from './i18n.jsx';
 import CalendarView from './calendar.jsx';
 import { supabase } from './supabase.js';
+import EmojiPicker from 'emoji-picker-react';
 
 function SetupView({ accent, onEditHabit, onAddHabit, bump, wake, bed, setWake, setBed }) {
   const { t } = useTranslation();
@@ -170,6 +171,7 @@ function HabitForm({ habit, isNew, onSave, onDelete, onClose, accent, onAddCateg
   const [h, setH] = React.useState(() => ({ ...habit, schedule: habit.schedule.map(s => ({ ...s, days: [...s.days] })) }));
   const [newCat, setNewCat] = React.useState("");
   const [addingCat, setAddingCat] = React.useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = React.useState(false);
   const set = (k, v) => setH(p => ({ ...p, [k]: v }));
   const s0 = h.schedule[0] || { days: [], start: 9*60, dur: 60 };
   const setSlot = (patch) => setH(p => ({ ...p, schedule: [{ ...s0, ...patch }] }));
@@ -205,6 +207,32 @@ function HabitForm({ habit, isNew, onSave, onDelete, onClose, accent, onAddCateg
             <button key={e} className={"emoji-btn" + (h.icon === e ? " on" : "")} onClick={() => set("icon", e)}
               style={h.icon === e ? { borderColor: accent, background: hexA(accent, 0.16) } : {}}>{e}</button>
           ))}
+          {!EMOJIS.includes(h.icon) && (
+            <button className="emoji-btn on" onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              style={{ borderColor: accent, background: hexA(accent, 0.16) }}>{h.icon}</button>
+          )}
+          
+          <div style={{ position: "relative" }}>
+            <button className={"emoji-btn" + (showEmojiPicker ? " on" : "")} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              style={{ color: "var(--text)" }}>
+              <Icon name="plus" size={16} stroke={2.5} />
+            </button>
+            {showEmojiPicker && (
+              <div style={{ position: "absolute", top: 40, left: 0, zIndex: 100 }}>
+                <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setShowEmojiPicker(false)} />
+                <div style={{ position: "relative", zIndex: 100 }}>
+                  <EmojiPicker 
+                    onEmojiClick={(e) => { set("icon", e.emoji); setShowEmojiPicker(false); }} 
+                    theme="dark"
+                    skinTonesDisabled
+                    searchDisabled
+                    width={300}
+                    height={400}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="modal-section-label">{t("setup.form.color")}</div>
