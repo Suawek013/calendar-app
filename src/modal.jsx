@@ -13,7 +13,8 @@ function timeOptions() {
 
 function EditModal({ block, isNew, onSave, onDelete, onClose, accent }) {
   const { t } = useTranslation();
-  const [b, setB] = React.useState(block);
+  const initH = habitById(block.habitId);
+  const [b, setB] = React.useState({ ...block, label: block.label || (initH ? initH.name : "") });
   const set = (k, v) => setB(p => ({ ...p, [k]: v }));
   const h = habitById(b.habitId) || { color: b.color || "#7d8aa0", icon: b.icon || "✨", name: b.label || "Block" };
   const times = timeOptions();
@@ -43,7 +44,11 @@ function EditModal({ block, isNew, onSave, onDelete, onClose, accent }) {
         <div className="cat-grid">
           {HABITS.map(hh => (
             <button key={hh.id} className={"cat-pill" + (b.habitId === hh.id ? " on" : "")}
-              onClick={() => set("habitId", hh.id)}
+              onClick={() => {
+                const oldH = habitById(b.habitId);
+                const isUnedited = !b.label || (oldH && b.label === oldH.name);
+                setB(p => ({ ...p, habitId: hh.id, label: isUnedited ? hh.name : p.label }));
+              }}
               style={b.habitId === hh.id ? { borderColor: hh.color, background: hexA(hh.color, 0.16) } : {}}>
               <span className="qa-swatch" style={{ background: hh.color }} />{hh.icon} {hh.name}
             </button>

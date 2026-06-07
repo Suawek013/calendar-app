@@ -407,7 +407,13 @@ function CalendarView({
       {quick && <QuickAdd info={quick} accent={accent}
         onClose={() => setQuick(null)}
         onNewHabit={() => { onNewHabit(); setQuick(null); }}
-        onAdd={(habitId) => { onCreateBlock(weekOffset + quick.dOff, { ...quick, habitId }); setQuick(null); }} />}
+        onAdd={(habitId) => {
+          const h = HABITS.find(x => x.id === habitId);
+          onCreateBlock(weekOffset + (quick.dOff || 0), { 
+            ...quick, habitId, label: h ? h.name : "", icon: h ? h.icon : "", color: h ? h.color : "" 
+          }); 
+          setQuick(null); 
+        }} />}
 
       {menu && <ContextMenu menu={menu} accent={accent} hasClip={!!clipboard} clip={clipboard} readOnly={readOnly}
         onClose={() => setMenu(null)}
@@ -425,6 +431,7 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, sele
   const h = habitById(b.habitId) || {};
   const color = b.color || h.color || "#7d8aa0";
   const icon = b.icon || h.icon || "";
+  const label = b.label || h.name || "";
   const top = (start - GRID_START) / 30 * SLOT;
   const height = dur / 30 * SLOT;
   const left = GUTTER + col * colW + 3, width = colW - 6;
@@ -455,7 +462,7 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, sele
       onMouseLeave={() => onHover && onHover(null)}>
       <div className="cal-block-top">
         <span className="cal-block-label" style={{ textDecoration: skipped ? "line-through" : "none" }}>
-          {icon} {b.label}
+          {icon} {label}
         </span>
         {!readOnly && (
           <button className="cal-status" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => onStatus(e, b)}>
