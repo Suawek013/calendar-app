@@ -18,16 +18,22 @@ function CalendarView({
   overlayOn, setOverlay, partnerEnabled, goalsByHabit, undo, redo, onNewHabit,
 }) {
   const { t } = useTranslation();
+  const [isContinuous, setIsContinuous] = React.useState(() => localStorage.getItem("cal_continuous") !== "false");
+  const toggleContinuous = () => setIsContinuous(c => { const n = !c; localStorage.setItem("cal_continuous", n); return n; });
+
   const SLOT = slot;
   const totalSlots = (GRID_END - GRID_START) / 30;
   const totalH = totalSlots * SLOT;
-  const dates = [
+  
+  const dates21 = [
     ...weekDates(weekOffset - 1),
     ...weekDates(weekOffset),
     ...weekDates(weekOffset + 1)
   ];
+  const displayDates = isContinuous ? dates21 : weekDates(weekOffset);
   const order = weekColsOrder();                      // semantic weekday per display column
   const order21 = [...order, ...order, ...order];
+  const displayOrder = isContinuous ? order21 : order;
   const wdToCol = {}; order.forEach((wd, i) => { wdToCol[wd] = i; });
 
   const headScrollRef = React.useRef(null);
@@ -44,10 +50,11 @@ function CalendarView({
 
   React.useLayoutEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollLeft = GUTTER + 7 * colW;
+      if (isContinuous) scrollRef.current.scrollLeft = GUTTER + 7 * colW;
+      else scrollRef.current.scrollLeft = 0;
       scrollRef.current.scrollTop = 1.5 * SLOT;
     }
-  }, [weekOffset]);
+  }, [weekOffset, isContinuous]);
 
   const [drag, setDrag] = React.useState(null);
   const [quick, setQuick] = React.useState(null);
@@ -107,7 +114,7 @@ function CalendarView({
     e.stopPropagation();
     const g = geom();
     const dOff = b.dOff || 0;
-    const col = wdToCol[b.day] + (dOff + 1) * 7;
+    const col = isContinuous ? wdToCol[b.day] + (dOff + 1) * 7 : wdToCol[b.day];
     const blockLeft = GUTTER + col * colW + 3;
     const blockTop = (b.start - GRID_START) / 30 * SLOT;
     dragInfo.current = {
@@ -131,9 +138,9 @@ function CalendarView({
     if (di.mode === "move" || di.mode === "clone") {
       const px = (e.clientX - g.left) - di.grabDX;
       const py = (e.clientY - g.top) - di.grabDY;
-      let ci = Math.round((px - GUTTER) / colW); ci = Math.max(0, Math.min(20, ci));
-      const targetDay = order21[ci];
-      const targetDOff = Math.floor(ci / 7) - 1;
+      let ci = Math.round((px - GUTTER) / colW); ci = Math.max(0, Math.min(isContinuous ? 20 : 6, ci));
+      const targetDay = displayOrder[ci];
+      const targetDOff = isContinuous ? Math.floor(ci / 7) - 1 : 0;
       let slotIx = Math.round(py / SLOT);
       let start = GRID_START + slotIx * 30;
       start = Math.max(GRID_START, Math.min(GRID_END - di.dur, start));
@@ -263,8 +270,8 @@ function CalendarView({
   for (let m = GRID_START; m <= GRID_END; m += 60) hours.push(m);
 
   return (
-    <div className="cal-wrap" style={{ "--col-w": colW + "px", "--cal-w": "calc(58px + 21 * var(--col-w))" }}>
-      <CalToolbar weekOffset={weekOffset} setWeekOffset={setWeekOffset} dates={dates}
+    <div className="cal-wrap" style={{ "--col-w": colW + "px", "--cal-w": isContinuous ? "calc(58px + 21 * var(--col-w))" : "100%" }}>
+      <CalToolbar weekOffset={weekOffset} setWeekOffset={setWeekOffset} dates={displayDates} isContinuous={isContinuous} toggleContinuous={toggleContinuous}
         onReset={onReset} accent={accent} readOnly={readOnly} partner={partner}
         cals={cals} activeCal={activeCal} onPickCal={onPickCal} onOpenProfile={onOpenProfile}
         overlayOn={overlayOn} setOverlay={setOverlay} partnerEnabled={partnerEnabled} />
@@ -282,14 +289,14 @@ function CalendarView({
       <div className="cal-head-viewport" ref={headScrollRef}>
         <div className="cal-head">
           <div style={{ width: GUTTER, flexShrink: 0 }} />
-          {order21.map((wd, i) => {
-            const dOff = Math.floor(i / 7) - 1;
+          {displayOrder.map((wd, i) => {
+            const dOff = isContinuous ? Math.floor(i / 7) - 1 : 0;
             const isToday = (weekOffset + dOff) === 0 && wd === today;
             return (
               <div key={i} className="cal-day-head" style={{
                 borderTop: isToday ? `2px solid ${accent}` : "2px solid transparent" }}>
                 <span className="cal-day-name" style={{ color: isToday ? accent : "var(--muted)" }}>{DAYS[wd]}</span>
-                <span className="cal-day-num" style={{ color: isToday ? "var(--text)" : "var(--muted2)" }}>{dates[i].getDate()}</span>
+                <span className="cal-day-num" style={{ color: isToday ? "var(--text)" : "var(--muted2)" }}>{displayDates[i].getDate()}</span>
               </div>
             );
           })}
@@ -307,8 +314,8 @@ function CalendarView({
               </React.Fragment>
             );
           })}
-          {order21.map((wd, i) => {
-            const dOff = Math.floor(i / 7) - 1;
+          {displayOrder.map((wd, i) => {
+            const dOff = isContinuous ? Math.floor(i / 7) - 1 : 0;
             const isToday = (weekOffset + dOff) === 0 && wd === today;
             return (
               <div key={i} className={"cal-col" + (readOnly ? " ro" : "")} onClick={(e) => emptyClick(e, wd, dOff)}
@@ -336,10 +343,10 @@ function CalendarView({
           })()}
 
           {/* partner overlay ghosts (behind my blocks) */}
-          {overlayBlocks && overlayBlocks.map(b => {
+          {overlayBlocks && (isContinuous ? overlayBlocks : overlayBlocks.filter(b => (b.dOff || 0) === 0)).map(b => {
             const dOff = b.dOff || 0;
             const top = (b.start - GRID_START) / 30 * SLOT, height = b.dur / 30 * SLOT;
-            const left = GUTTER + (wdToCol[b.day] + (dOff + 1) * 7) * colW + 3, width = colW - 6;
+            const left = GUTTER + (isContinuous ? wdToCol[b.day] + (dOff + 1) * 7 : wdToCol[b.day]) * colW + 3, width = colW - 6;
             return (
               <div key={"g" + b.id} className="cal-ghost"
                 style={{ top, left, width, height, background: hexA(partner.color, 0.1),
@@ -351,16 +358,16 @@ function CalendarView({
 
           {drag && (
             <div className="cal-drop" style={{
-              left: GUTTER + (wdToCol[drag.day] + ((drag.dOff || 0) + 1) * 7) * colW + 2, width: colW - 4,
+              left: GUTTER + (isContinuous ? wdToCol[drag.day] + ((drag.dOff || 0) + 1) * 7 : wdToCol[drag.day]) * colW + 2, width: colW - 4,
               top: (drag.start - GRID_START) / 30 * SLOT,
               height: drag.dur / 30 * SLOT, borderColor: accent }} />
           )}
 
-          {blocks.map(b => {
+          {(isContinuous ? blocks : blocks.filter(b => (b.dOff || 0) === 0)).map(b => {
             const isDragging = drag && drag.id === b.id;
             const isCloning = isDragging && drag.isClone;
             const dOff = isDragging && !isCloning ? drag.dOff : (b.dOff || 0);
-            const col = wdToCol[isDragging && !isCloning ? drag.day : b.day] + (dOff + 1) * 7;
+            const col = isContinuous ? wdToCol[isDragging && !isCloning ? drag.day : b.day] + (dOff + 1) * 7 : wdToCol[isDragging && !isCloning ? drag.day : b.day];
             
             const orig = (
               <Block key={b.id + (isCloning ? "_orig" : "")} b={b} colW={colW} SLOT={SLOT} 
@@ -377,7 +384,7 @@ function CalendarView({
             if (!isCloning) return orig;
 
             const clone = (
-              <Block key={b.id + "_clone"} b={b} colW={colW} SLOT={SLOT} col={wdToCol[drag.day] + (drag.dOff + 1) * 7} start={drag.start} dur={drag.dur}
+              <Block key={b.id + "_clone"} b={b} colW={colW} SLOT={SLOT} col={isContinuous ? wdToCol[drag.day] + (drag.dOff + 1) * 7 : wdToCol[drag.day]} start={drag.start} dur={drag.dur}
                 style={blockStyle} dragging={drag.moved} readOnly={readOnly}
                 onDown={()=>{}} onStatus={()=>{}} onCtx={()=>{}} onHover={()=>{}}
                 goals={goalsByHabit && goalsByHabit[b.habitId]} />
@@ -465,10 +472,10 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, sele
   );
 }
 
-function CalToolbar({ weekOffset, setWeekOffset, dates, onReset, accent, readOnly, partner,
+function CalToolbar({ weekOffset, setWeekOffset, dates, isContinuous, toggleContinuous, onReset, accent, readOnly, partner,
   cals, activeCal, onPickCal, onOpenProfile, overlayOn, setOverlay, partnerEnabled }) {
   const { t } = useTranslation();
-  const start = dates[0], end = dates[20];
+  const start = dates[0], end = dates[dates.length - 1];
   const mo = (d) => d.toLocaleString("en-US", { month: "short" });
   const range = mo(start) === mo(end)
     ? `${mo(start)} ${start.getDate()} – ${end.getDate()}`
@@ -494,6 +501,10 @@ function CalToolbar({ weekOffset, setWeekOffset, dates, onReset, accent, readOnl
           </button>
         )}
         {!readOnly && <button className="ghost-btn" onClick={onReset} title="Restore auto-generated blocks">{t("cal.tb.reset")}</button>}
+        <button className="ghost-btn" style={{ padding: "6px 10px", display: "flex", gap: 6, alignItems: "center" }} onClick={toggleContinuous}>
+          <Icon name={isContinuous ? "calendar2" : "calendar"} size={14} />
+          {isContinuous ? "Płynny (21 dni)" : "Klasyczny (7 dni)"}
+        </button>
         <div className="cal-nav">
           <button onClick={() => setWeekOffset(weekOffset - 1)}><Icon name="chevL" size={18} /></button>
           <button className="cal-today-btn" onClick={() => setWeekOffset(0)}>{t("cal.tb.today")}</button>
