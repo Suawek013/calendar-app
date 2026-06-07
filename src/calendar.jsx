@@ -590,7 +590,7 @@ function QuickAdd({ info, onClose, onAdd, onNewHabit, accent }) {
     return (
       <div ref={ref} className="quickadd" style={{ left: x, top: info.y + 8, padding: 15, color: "var(--text)" }}>
         <div style={{ marginBottom: 12 }}>{t("cal.qa.noHabits")}</div>
-        <button className="qa-add" onClick={onNewHabit} style={{ background: accent }}>
+        <button className="qa-add" onClick={onNewHabit} style={{ color: accent, background: "transparent", border: `1px dashed ${hexA(accent, 0.4)}` }}>
           <Icon name="plus" size={15} /> {t("cal.ctx.newHabit")}
         </button>
       </div>
@@ -609,7 +609,7 @@ function QuickAdd({ info, onClose, onAdd, onNewHabit, accent }) {
           </button>
         ))}
       </div>
-      <button className="qa-add" onClick={onNewHabit} style={{ background: accent, marginTop: 10 }}>
+      <button className="qa-add" onClick={onNewHabit} style={{ color: accent, background: "transparent", border: `1px dashed ${hexA(accent, 0.4)}` }}>
         <Icon name="plus" size={15} /> {t("cal.ctx.newHabit")}
       </button>
     </div>

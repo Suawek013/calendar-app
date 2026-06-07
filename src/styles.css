@@ -195,8 +195,9 @@ button{font-family:inherit}
   background:var(--surface);color:var(--text);font-size:12.5px;font-weight:500;cursor:pointer;text-align:left}
 .qa-pill:hover{background:var(--surface-3)}
 .qa-swatch{width:9px;height:9px;border-radius:3px;flex-shrink:0}
-.qa-add{margin-top:10px;width:100%;border:none;color:#0b0b10;font-weight:700;font-size:13px;padding:10px;border-radius:9px;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.qa-add{margin-top:8px;width:100%;font-weight:600;font-size:12px;padding:7px;border-radius:7px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:background .2s}
+.qa-add:hover{background:var(--surface-3)!important}
 
 /* ---------- modal ---------- */
 .modal-backdrop{position:fixed;inset:0;background:rgba(8,8,12,.6);backdrop-filter:blur(7px);
