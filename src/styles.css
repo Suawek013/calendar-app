@@ -744,7 +744,10 @@ button{font-family:inherit}
 .dash-behind .bb-ico{font-size:15px}
 
 /* ---- calendar goal dot ---- */
-.cal-goal-dot{position:absolute;right:6px;bottom:6px;width:7px;height:7px;border-radius:50%;
+.cal-goal-dot{position:absolute;bottom:4px;right:4px;width:6px;height:6px;border-radius:50%}
+
+.cal-now-line{position:absolute;height:0;border-top:2px dashed;z-index:4;pointer-events:none}
+.cal-now-dot{position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;
   box-shadow:0 0 0 2px var(--surface)}
 
 @media(max-width:980px){

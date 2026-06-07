@@ -46,6 +46,12 @@ function CalendarView({
   const hoverCellRef = React.useRef(null);
   const toastTimer = React.useRef(null);
 
+  const [now, setNow] = React.useState(new Date());
+  React.useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   function flash(msg) {
     setToast(msg);
     clearTimeout(toastTimer.current);
@@ -247,6 +253,22 @@ function CalendarView({
             );
           })}
 
+          {/* current time line */}
+          {weekOffset === 0 && wdToCol[today] !== undefined && (() => {
+            const nowMins = now.getHours() * 60 + now.getMinutes();
+            if (nowMins < GRID_START || nowMins > GRID_END) return null;
+            return (
+              <div className="cal-now-line" style={{
+                top: (nowMins - GRID_START) / 30 * SLOT,
+                left: GUTTER + wdToCol[today] * colW,
+                width: colW,
+                borderTopColor: accent,
+              }}>
+                <div className="cal-now-dot" style={{ background: accent }} />
+              </div>
+            );
+          })()}
+
           {/* partner overlay ghosts (behind my blocks) */}
           {overlayBlocks && overlayBlocks.map(b => {
             const top = (b.start - GRID_START) / 30 * SLOT, height = b.dur / 30 * SLOT;
@@ -282,12 +304,6 @@ function CalendarView({
           })}
         </div>
       </div>
-
-      {!readOnly && (
-        <button className="fab" onClick={() => onAdd(weekOffset)} title="Add block">
-          <Icon name="plus" size={22} stroke={2.4} />
-        </button>
-      )}
 
       {quick && <QuickAdd info={quick} accent={accent}
         onClose={() => setQuick(null)}
