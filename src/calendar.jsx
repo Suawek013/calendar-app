@@ -147,7 +147,7 @@ function CalendarView({
       const isClone = e.altKey || di.mode === "clone";
       previewRef.current = { day: targetDay, dOff: targetDOff, start, dur: di.dur, moved, isClone };
       setDrag(d => ({ ...d, day: targetDay, dOff: targetDOff, start, moved, isClone }));
-    } else {
+    } else if (di.mode === "resize-bottom" || di.mode === "resize") {
       const py = (e.clientY - g.top);
       const b = blocks.find(x => x.id === di.id);
       const topPx = (b.start - GRID_START) / 30 * SLOT;
@@ -155,6 +155,15 @@ function CalendarView({
       let dur = Math.min(slots * 30, GRID_END - b.start);
       previewRef.current = { day: b.day, dOff: di.originalDOff, start: b.start, dur, moved, isClone: false };
       setDrag(d => ({ ...d, day: b.day, dOff: di.originalDOff, start: b.start, dur, moved, isClone: false }));
+    } else if (di.mode === "resize-top") {
+      const py = (e.clientY - g.top);
+      const b = blocks.find(x => x.id === di.id);
+      let slotIx = Math.round(py / SLOT);
+      let newStart = GRID_START + slotIx * 30;
+      newStart = Math.max(GRID_START, Math.min((b.start + b.dur) - 30, newStart));
+      let newDur = (b.start + b.dur) - newStart;
+      previewRef.current = { day: b.day, dOff: di.originalDOff, start: newStart, dur: newDur, moved, isClone: false };
+      setDrag(d => ({ ...d, day: b.day, dOff: di.originalDOff, start: newStart, dur: newDur, moved, isClone: false }));
     }
   }
 
@@ -178,7 +187,7 @@ function CalendarView({
              onUpdate(di.id, { day: d.day, start: d.start, template: false });
          }
       }
-      else onUpdate(di.id, { dur: d.dur, template: false });
+      else onUpdate(di.id, { dur: d.dur, start: d.start, template: false });
     }
   }
 
@@ -465,7 +474,8 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, sele
         const tip = t("cal.block.contributing", {goals: goals.map(g => g.name).join(", "), prog});
         return <span className="cal-goal-dot" style={{ background: gColor }} title={tip} />;
       })()}
-      {!readOnly && <div className="cal-block-resizer" onPointerDown={(e) => { e.stopPropagation(); onDown(e, b, "resize"); }} />}
+      {!readOnly && <div className="cal-resize top" onPointerDown={(e) => { e.stopPropagation(); onDown(e, b, "resize-top"); }} />}
+      {!readOnly && <div className="cal-resize bottom" onPointerDown={(e) => { e.stopPropagation(); onDown(e, b, "resize-bottom"); }} />}
       {!readOnly && <div className="cal-block-cloner left" onPointerDown={(e) => { e.stopPropagation(); onDown(e, b, "clone"); }} />}
       {!readOnly && <div className="cal-block-cloner right" onPointerDown={(e) => { e.stopPropagation(); onDown(e, b, "clone"); }} />}
     </div>

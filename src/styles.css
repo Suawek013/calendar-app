@@ -174,8 +174,9 @@ button{font-family:inherit}
 .cal-block-time{font-size:10.5px;margin-top:auto;font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .cal-status{background:transparent;border:none;padding:0;cursor:pointer;display:flex;flex-shrink:0;margin-top:1px}
 .cal-dot-custom{position:absolute;left:0;bottom:0;width:0;height:0;border-style:solid;border-width:0 0 9px 9px;border-color:transparent;opacity:.5;display:none}
-.cal-resize{position:absolute;left:0;right:0;bottom:0;height:7px;cursor:ns-resize}
-.cal-block.done{opacity:.82;filter:saturate(.4)}
+.cal-resize{position:absolute;left:0;right:0;height:8px;cursor:ns-resize;z-index:5}
+.cal-resize.top{top:-2px}
+.cal-resize.bottom{bottom:-2px}
 .cal-block.done .cal-block-label{color:var(--muted)}
 .cal-block.done .cal-block-sub,.cal-block.done .cal-block-time{opacity:.7}
 .cal-done-mark{position:absolute;right:5px;bottom:4px;color:currentColor;opacity:.24;pointer-events:none;line-height:0}
