@@ -174,6 +174,8 @@ function App() {
         setGoals(mappedGoals);
       }
 
+      setWeeks({});
+      setSharedWeeks({});
       setDataLoaded(true);
       bump();
     }
@@ -218,12 +220,13 @@ function App() {
 
   // lazy week generation
   const getBlocks = (off) => {
+    if (!dataLoaded) return [];
     if (weeks[off]) return weeks[off];
     const gen = generateWeek(off);
     setWeeks(w => ({ ...w, [off]: gen }));
     return gen;
   };
-  const blocks = weeks[weekOffset] || getBlocks(weekOffset);
+  const blocks = dataLoaded ? (weeks[weekOffset] || getBlocks(weekOffset)) : [];
 
   // partner (shared, read-only) week cache
   
