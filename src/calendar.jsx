@@ -15,7 +15,7 @@ function CalendarView({
   onReset, onEdit, accent, blockStyle, slot, today, tintToday,
   clipboard, setClipboard, onCreateBlock,
   readOnly, overlayBlocks, partner, cals, activeCal, onPickCal, onOpenProfile,
-  overlayOn, setOverlay, partnerEnabled, goalsByHabit,
+  overlayOn, setOverlay, partnerEnabled, goalsByHabit, undo, redo,
 }) {
   const { t } = useTranslation();
   const SLOT = slot;
