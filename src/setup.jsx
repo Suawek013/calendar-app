@@ -4,7 +4,7 @@
 import React from 'react';
 import { HABITS, HABIT_PALETTE, DAYS, min12, GRID_START, GRID_END, CATEGORIES } from './data.jsx';
 import { Icon, hexA } from './components.jsx';
-import { ColorSwatches } from './modal.jsx';
+import { ColorSwatches, EditModal } from './modal.jsx';
 import { useTranslation } from './i18n.jsx';
 import CalendarView from './calendar.jsx';
 import { supabase } from './supabase.js';
@@ -301,6 +301,7 @@ function HabitForm({ habit, isNew, onSave, onDelete, onClose, accent, onAddCateg
 function TemplateEditorModal({ onClose, accent }) {
   const { t } = useTranslation();
   const [clipboard, setClipboard] = React.useState(null);
+  const [editingBlock, setEditingBlock] = React.useState(null);
   
   const [blocks, setBlocks] = React.useState(() => {
     const initBlocks = [];
@@ -323,6 +324,11 @@ function TemplateEditorModal({ onClose, accent }) {
 
   const onDelete = (id) => {
     setBlocks(bs => bs.filter(x => x.id !== id));
+  };
+
+  const onEdit = (id) => {
+    const b = blocks.find(x => x.id === id);
+    if (b) setEditingBlock(b);
   };
 
   const onAdd = (habitId) => {};
@@ -358,12 +364,23 @@ function TemplateEditorModal({ onClose, accent }) {
       <CalendarView 
         blocks={blocks} weekOffset={0} setWeekOffset={() => {}} 
         onUpdate={onUpdate} onDelete={onDelete} onAdd={onAdd} onCreateBlock={onCreateBlock}
+        onEdit={onEdit}
         accent={accent} blockStyle="tint" slot={28} today={-1} tintToday={false}
         clipboard={clipboard} setClipboard={setClipboard} 
         readOnly={false} isTemplate={true} onSaveTemplate={onSave} onCancelTemplate={onClose}
         cals={[]} onNewHabit={() => alert("Dodaj nawyk w głównym widoku, aby móc użyć go w szablonie.")}
         undo={() => {}} redo={() => {}}
       />
+      {editingBlock && (
+        <EditModal 
+          block={editingBlock} 
+          isNew={false} 
+          accent={accent} 
+          onSave={(updatedBlock) => { onUpdate(updatedBlock.id, updatedBlock); setEditingBlock(null); }} 
+          onDelete={(id) => { onDelete(id); setEditingBlock(null); }} 
+          onClose={() => setEditingBlock(null)} 
+        />
+      )}
     </div>
   );
 }
