@@ -99,9 +99,10 @@ function CalendarView({
       grabDX: (e.clientX - g.left) - blockLeft,
       grabDY: (e.clientY - g.top) - blockTop,
       startX: e.clientX, startY: e.clientY,
+      originalDay: b.day,
     };
-    setDrag({ id: b.id, day: b.day, start: b.start, dur: b.dur, moved: false, mode });
-    previewRef.current = { day: b.day, start: b.start, dur: b.dur, moved: false };
+    setDrag({ id: b.id, day: b.day, start: b.start, dur: b.dur, moved: false, mode, isClone: false });
+    previewRef.current = { day: b.day, start: b.start, dur: b.dur, moved: false, isClone: false };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   }
@@ -118,16 +119,17 @@ function CalendarView({
       let slotIx = Math.round(py / SLOT);
       let start = GRID_START + slotIx * 30;
       start = Math.max(GRID_START, Math.min(GRID_END - di.dur, start));
-      previewRef.current = { day, start, dur: di.dur, moved };
-      setDrag(d => ({ ...d, day, start, moved }));
+      const isClone = e.altKey || day !== di.originalDay;
+      previewRef.current = { day, start, dur: di.dur, moved, isClone };
+      setDrag(d => ({ ...d, day, start, moved, isClone }));
     } else {
       const py = (e.clientY - g.top);
       const b = blocks.find(x => x.id === di.id);
       const topPx = (b.start - GRID_START) / 30 * SLOT;
       let slots = Math.max(1, Math.round((py - topPx) / SLOT));
       let dur = Math.min(slots * 30, GRID_END - b.start);
-      previewRef.current = { day: b.day, start: b.start, dur, moved };
-      setDrag(d => ({ ...d, day: b.day, start: b.start, dur, moved }));
+      previewRef.current = { day: b.day, start: b.start, dur, moved, isClone: false };
+      setDrag(d => ({ ...d, day: b.day, start: b.start, dur, moved, isClone: false }));
     }
   }
 
@@ -139,8 +141,14 @@ function CalendarView({
     setDrag(null);
     if (!di || !d) return;
     if (!d.moved) { onEdit(di.id); return; }
-    if (di.mode === "move") onUpdate(di.id, { day: d.day, start: d.start, template: false });
-    else onUpdate(di.id, { dur: d.dur, template: false });
+    
+    if (d.isClone && di.mode === "move") {
+      const b = blocks.find(x => x.id === di.id);
+      onCreateBlock(weekOffset, { ...b, day: d.day, start: d.start, dur: d.dur, status: "planned", id: undefined });
+    } else {
+      if (di.mode === "move") onUpdate(di.id, { day: d.day, start: d.start, template: false });
+      else onUpdate(di.id, { dur: d.dur, template: false });
+    }
   }
 
   function cycleStatus(e, b) {
@@ -291,16 +299,29 @@ function CalendarView({
 
           {blocks.map(b => {
             const isDragging = drag && drag.id === b.id;
-            const day = isDragging ? drag.day : b.day;
-            const start = isDragging ? drag.start : b.start;
-            const dur = isDragging ? drag.dur : b.dur;
-            return (
-              <Block key={b.id} b={b} colW={colW} SLOT={SLOT} col={wdToCol[day]} start={start} dur={dur}
-                style={blockStyle} dragging={isDragging && drag.moved} readOnly={readOnly}
+            const isCloning = isDragging && drag.isClone;
+            
+            const orig = (
+              <Block key={b.id + (isCloning ? "_orig" : "")} b={b} colW={colW} SLOT={SLOT} 
+                col={wdToCol[isDragging && !isCloning ? drag.day : b.day]} 
+                start={isDragging && !isCloning ? drag.start : b.start} 
+                dur={isDragging && !isCloning ? drag.dur : b.dur}
+                style={blockStyle} dragging={isDragging && drag.moved && !isCloning} readOnly={readOnly}
                 onDown={startDrag} onStatus={cycleStatus}
                 onCtx={blockContext} onHover={(id) => { hoverBlockRef.current = id; }}
                 goals={goalsByHabit && goalsByHabit[b.habitId]} />
             );
+
+            if (!isCloning) return orig;
+
+            const clone = (
+              <Block key={b.id + "_clone"} b={b} colW={colW} SLOT={SLOT} col={wdToCol[drag.day]} start={drag.start} dur={drag.dur}
+                style={blockStyle} dragging={drag.moved} readOnly={readOnly}
+                onDown={()=>{}} onStatus={()=>{}} onCtx={()=>{}} onHover={()=>{}}
+                goals={goalsByHabit && goalsByHabit[b.habitId]} />
+            );
+            
+            return <React.Fragment key={b.id}>{orig}{clone}</React.Fragment>;
           })}
         </div>
       </div>
