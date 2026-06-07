@@ -45,6 +45,7 @@ function CalendarView({
   const hoverBlockRef = React.useRef(null);
   const hoverCellRef = React.useRef(null);
   const toastTimer = React.useRef(null);
+  const [selId, setSelId] = React.useState(null);
 
   const [now, setNow] = React.useState(new Date());
   React.useEffect(() => {
@@ -140,7 +141,7 @@ function CalendarView({
     dragInfo.current = null; previewRef.current = null;
     setDrag(null);
     if (!di || !d) return;
-    if (!d.moved) { onEdit(di.id); return; }
+    if (!d.moved) { setSelId(di.id); return; }
     
     if (d.isClone && di.mode === "move") {
       const b = blocks.find(x => x.id === di.id);
@@ -167,6 +168,7 @@ function CalendarView({
   }
   function emptyClick(e, day) {
     if (drag || readOnly) return;
+    setSelId(null);
     const c = cellAt(e, day);
     setQuick({ day, start: Math.min(c.start, GRID_END - 60), x: e.clientX, y: e.clientY });
   }
@@ -188,23 +190,49 @@ function CalendarView({
       const mod = e.metaKey || e.ctrlKey;
       const tag = (e.target.tagName || "").toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
-      if (!mod) { if (e.key === "Escape") { setMenu(null); setQuick(null); } return; }
+      
+      const targetId = selId || hoverBlockRef.current;
+      const b = targetId ? blocks.find(x => x.id === targetId) : null;
+
+      if (!mod) {
+        if (e.key === "Escape") { setMenu(null); setQuick(null); setSelId(null); }
+        else if ((e.key === "Delete" || e.key === "Backspace") && selId && !readOnly) {
+          onDelete(selId); setSelId(null);
+        }
+        else if (e.key.startsWith("Arrow") && selId) {
+          e.preventDefault();
+          const sortedBlocks = [...blocks].sort((a, b) => {
+            const dayA = wdToCol[a.day] || 0;
+            const dayB = wdToCol[b.day] || 0;
+            if (dayA !== dayB) return dayA - dayB;
+            return a.start - b.start;
+          });
+          const ix = sortedBlocks.findIndex(x => x.id === selId);
+          if (ix >= 0) {
+            let nextIx = ix;
+            if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIx++;
+            else if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIx--;
+            if (nextIx >= 0 && nextIx < sortedBlocks.length) {
+              setSelId(sortedBlocks[nextIx].id);
+            }
+          }
+        }
+        return;
+      }
+      
       const k = e.key.toLowerCase();
-      if (k === "c") {
-        const id = hoverBlockRef.current;
-        const b = id && blocks.find(x => x.id === id);
-        if (b) { copyBlock(b); e.preventDefault(); }
-      } else if (k === "x" && !readOnly) {
-        const id = hoverBlockRef.current;
-        const b = id && blocks.find(x => x.id === id);
-        if (b) { cutBlock(b); e.preventDefault(); }
-      } else if (k === "v" && !readOnly) {
-        if (clipboard && hoverCellRef.current) { pasteAt(hoverCellRef.current); e.preventDefault(); }
+      if (k === "c" && b) { copyBlock(b); e.preventDefault(); }
+      else if (k === "x" && !readOnly && b) { cutBlock(b); e.preventDefault(); }
+      else if (k === "d" && !readOnly && b) { duplicate(b); e.preventDefault(); }
+      else if (k === "v" && !readOnly && clipboard) {
+        if (selId && b) pasteAt({ day: b.day, start: Math.min(GRID_END - (clipboard.dur || 60), b.start + b.dur) });
+        else if (hoverCellRef.current) pasteAt(hoverCellRef.current);
+        e.preventDefault();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [blocks, clipboard, weekOffset, readOnly]);
+  }, [blocks, clipboard, weekOffset, readOnly, selId]);
 
   const hours = [];
   for (let m = GRID_START; m <= GRID_END; m += 60) hours.push(m);
@@ -307,6 +335,7 @@ function CalendarView({
                 start={isDragging && !isCloning ? drag.start : b.start} 
                 dur={isDragging && !isCloning ? drag.dur : b.dur}
                 style={blockStyle} dragging={isDragging && drag.moved && !isCloning} readOnly={readOnly}
+                selected={selId === b.id}
                 onDown={startDrag} onStatus={cycleStatus}
                 onCtx={blockContext} onHover={(id) => { hoverBlockRef.current = id; }}
                 goals={goalsByHabit && goalsByHabit[b.habitId]} />
@@ -341,7 +370,7 @@ function CalendarView({
   );
 }
 
-function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, onDown, onStatus, onCtx, onHover, goals }) {
+function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, selected, onDown, onStatus, onCtx, onHover, goals }) {
   const { t } = useTranslation();
   const h = habitById(b.habitId) || {};
   const color = b.color || h.color || "#7d8aa0";
@@ -367,8 +396,8 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, onDo
       style={{
         top, left, width, height, background: bg, border, borderLeft,
         opacity: skipped ? 0.5 : 1,
-        boxShadow: dragging ? "0 12px 28px rgba(0,0,0,.5)" : "none",
-        zIndex: dragging ? 50 : 2, color: textCol,
+        boxShadow: dragging ? "0 12px 28px rgba(0,0,0,.5)" : (selected ? `0 0 0 2px ${color}, 0 4px 12px rgba(0,0,0,0.15)` : "none"),
+        zIndex: dragging ? 50 : (selected ? 10 : 2), color: textCol,
       }}
       onPointerDown={(e) => onDown(e, b, "move")}
       onContextMenu={(e) => onCtx(e, b)}
