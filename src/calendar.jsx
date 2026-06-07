@@ -16,6 +16,7 @@ function CalendarView({
   clipboard, setClipboard, onCreateBlock,
   readOnly, overlayBlocks, partner, cals, activeCal, onPickCal, onOpenProfile,
   overlayOn, setOverlay, partnerEnabled, goalsByHabit, undo, redo, onNewHabit,
+  isTemplate = false, onSaveTemplate, onCancelTemplate
 }) {
   const { t } = useTranslation();
   const [isContinuous, setIsContinuous] = React.useState(() => localStorage.getItem("cal_continuous") !== "false");
@@ -280,10 +281,23 @@ function CalendarView({
 
   return (
     <div className="cal-wrap" style={{ "--col-w": colW + "px", "--cal-w": isContinuous ? "calc(58px + 21 * var(--col-w))" : "100%" }}>
-      <CalToolbar weekOffset={weekOffset} setWeekOffset={setWeekOffset} dates={displayDates} isContinuous={isContinuous} toggleContinuous={toggleContinuous}
-        onReset={onReset} onClear={onClear} accent={accent} readOnly={readOnly} partner={partner}
-        cals={cals} activeCal={activeCal} onPickCal={onPickCal} onOpenProfile={onOpenProfile}
-        overlayOn={overlayOn} setOverlay={setOverlay} partnerEnabled={partnerEnabled} />
+      {isTemplate ? (
+        <div className="cal-toolbar">
+          <div className="cal-tb-left">
+            <h1 className="cal-title" style={{ color: accent }}>{t("setup.tmplTitle")}</h1>
+            <span className="cal-year">{t("cal.tmpl.hint", "Przeciągaj bloki, by zdefiniować domyślny harmonogram")}</span>
+          </div>
+          <div className="cal-tb-right">
+            <button className="ghost-btn" onClick={onCancelTemplate}>{t("block.modal.cancel")}</button>
+            <button className="save-btn" onClick={onSaveTemplate} style={{ background: accent }}>{t("block.modal.save")}</button>
+          </div>
+        </div>
+      ) : (
+        <CalToolbar weekOffset={weekOffset} setWeekOffset={setWeekOffset} dates={displayDates} isContinuous={isContinuous} toggleContinuous={toggleContinuous}
+          onReset={onReset} onClear={onClear} accent={accent} readOnly={readOnly} partner={partner}
+          cals={cals} activeCal={activeCal} onPickCal={onPickCal} onOpenProfile={onOpenProfile}
+          overlayOn={overlayOn} setOverlay={setOverlay} partnerEnabled={partnerEnabled} />
+      )}
 
       {readOnly && partner && (
         <div className="cal-ro-banner" style={{ borderColor: hexA(partner.color, 0.45) }}>
@@ -300,12 +314,12 @@ function CalendarView({
           <div style={{ width: GUTTER, flexShrink: 0 }} />
           {displayOrder.map((wd, i) => {
             const dOff = isContinuous ? Math.floor(i / 7) - 1 : 0;
-            const isToday = (weekOffset + dOff) === 0 && wd === today;
+            const isToday = !isTemplate && (weekOffset + dOff) === 0 && wd === today;
             return (
               <div key={i} className="cal-day-head" style={{
                 borderTop: isToday ? `2px solid ${accent}` : "2px solid transparent" }}>
                 <span className="cal-day-name" style={{ color: isToday ? accent : "var(--muted)" }}>{DAYS[wd]}</span>
-                <span className="cal-day-num" style={{ color: isToday ? "var(--text)" : "var(--muted2)" }}>{displayDates[i].getDate()}</span>
+                {!isTemplate && <span className="cal-day-num" style={{ color: isToday ? "var(--text)" : "var(--muted2)" }}>{displayDates[i].getDate()}</span>}
               </div>
             );
           })}
@@ -325,7 +339,7 @@ function CalendarView({
           })}
           {displayOrder.map((wd, i) => {
             const dOff = isContinuous ? Math.floor(i / 7) - 1 : 0;
-            const isToday = (weekOffset + dOff) === 0 && wd === today;
+            const isToday = !isTemplate && (weekOffset + dOff) === 0 && wd === today;
             return (
               <div key={i} className={"cal-col" + (readOnly ? " ro" : "")} onClick={(e) => emptyClick(e, wd, dOff)}
                 onContextMenu={(e) => colContext(e, wd, dOff)}
@@ -336,7 +350,7 @@ function CalendarView({
           })}
 
           {/* current time line */}
-          {weekOffset === 0 && wdToCol[today] !== undefined && (() => {
+          {!isTemplate && weekOffset === 0 && wdToCol[today] !== undefined && (() => {
             const nowMins = now.getHours() * 60 + now.getMinutes();
             if (nowMins < GRID_START || nowMins > GRID_END) return null;
             return (

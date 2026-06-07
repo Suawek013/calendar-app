@@ -6,9 +6,17 @@ import { HABITS, HABIT_PALETTE, DAYS, min12, GRID_START, GRID_END, CATEGORIES } 
 import { Icon, hexA } from './components.jsx';
 import { ColorSwatches } from './modal.jsx';
 import { useTranslation } from './i18n.jsx';
+import CalendarView from './calendar.jsx';
+import { supabase } from './supabase.js';
 
 function SetupView({ accent, onEditHabit, onAddHabit, bump, wake, bed, setWake, setBed }) {
   const { t } = useTranslation();
+  const [isEditingTemplate, setIsEditingTemplate] = React.useState(false);
+  
+  if (isEditingTemplate) {
+    return <TemplateEditorModal accent={accent} onClose={() => { setIsEditingTemplate(false); bump(); }} />;
+  }
+
   return (
     <div className="setup">
       <header className="setup-head">
@@ -52,7 +60,10 @@ function SetupView({ accent, onEditHabit, onAddHabit, bump, wake, bed, setWake, 
           <SleepCard wake={wake} bed={bed} setWake={setWake} setBed={setBed} accent={accent} />
 
           <section className="dash-block">
-            <div className="dash-block-head"><h2 className="sec-title">{t("setup.tmplTitle")}</h2></div>
+            <div className="dash-block-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 className="sec-title">{t("setup.tmplTitle")}</h2>
+              <button className="ghost-btn" style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => setIsEditingTemplate(true)}>Edytuj</button>
+            </div>
             <p className="tmpl-note">{t("setup.tmplNote1")}</p>
             <TemplatePreview />
           </section>
@@ -259,4 +270,74 @@ function HabitForm({ habit, isNew, onSave, onDelete, onClose, accent, onAddCateg
   );
 }
 
-export { SetupView, HabitForm };
+function TemplateEditorModal({ onClose, accent }) {
+  const { t } = useTranslation();
+  const [clipboard, setClipboard] = React.useState(null);
+  
+  const [blocks, setBlocks] = React.useState(() => {
+    const initBlocks = [];
+    HABITS.forEach(h => {
+      h.schedule.forEach((s, sIdx) => {
+        s.days.forEach(d => {
+          initBlocks.push({
+            id: `t_${h.id}_${sIdx}_${d}_${s.start}`,
+            habitId: h.id, day: d, start: s.start, dur: s.dur, label: h.name, color: h.color, icon: h.icon, template: true, status: "planned"
+          });
+        });
+      });
+    });
+    return initBlocks;
+  });
+
+  const onUpdate = (id, patch) => {
+    setBlocks(bs => bs.map(x => x.id === id ? { ...x, ...patch } : x));
+  };
+
+  const onDelete = (id) => {
+    setBlocks(bs => bs.filter(x => x.id !== id));
+  };
+
+  const onAdd = (habitId) => {};
+
+  const onCreateBlock = (off, b) => {
+    const nb = { ...b, id: "n" + Date.now() + Math.random().toString(36).slice(2, 5), template: true, status: "planned" };
+    setBlocks(bs => [...bs, nb]);
+    return nb;
+  };
+
+  const onSave = async () => {
+    const newHabits = [...HABITS];
+    newHabits.forEach(h => {
+      const hBlocks = blocks.filter(b => b.habitId === h.id);
+      const schedMap = {}; 
+      hBlocks.forEach(b => {
+        const key = `${b.start}_${b.dur}`;
+        if (!schedMap[key]) schedMap[key] = { start: b.start, dur: b.dur, days: [] };
+        if (!schedMap[key].days.includes(b.day)) schedMap[key].days.push(b.day);
+      });
+      h.schedule = Object.values(schedMap);
+    });
+
+    for (const h of newHabits) {
+      await supabase.from('habits').update({ schedule: h.schedule }).eq('id', h.id);
+    }
+    
+    onClose();
+  };
+
+  return (
+    <div className="modal-backdrop" style={{ padding: 0, background: "var(--bg)", zIndex: 90 }}>
+      <CalendarView 
+        blocks={blocks} weekOffset={0} setWeekOffset={() => {}} 
+        onUpdate={onUpdate} onDelete={onDelete} onAdd={onAdd} onCreateBlock={onCreateBlock}
+        accent={accent} blockStyle="tint" slot={28} today={-1} tintToday={false}
+        clipboard={clipboard} setClipboard={setClipboard} 
+        readOnly={false} isTemplate={true} onSaveTemplate={onSave} onCancelTemplate={onClose}
+        cals={[]} onNewHabit={() => alert("Dodaj nawyk w głównym widoku, aby móc użyć go w szablonie.")}
+        undo={() => {}} redo={() => {}}
+      />
+    </div>
+  );
+}
+
+export { SetupView, HabitForm, TemplateEditorModal };
