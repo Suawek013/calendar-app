@@ -3,6 +3,7 @@ import React from 'react';
 import { Icon } from './components.jsx';
 import { generateWeekFromData, TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, CUSTOM_BLOCKS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12 } from './data.jsx';
 import { supabase } from './supabase.js';
+import { useTranslation } from './i18n.jsx';
 import { GOALS_SEED, GOAL_YEAR } from './goals-data.jsx';
 import LoginView from './login.jsx';
 import DashboardView from './dashboard.jsx';
@@ -43,6 +44,7 @@ function bumpSeries(series, cum) {
 }
 
 function App() {
+  const { t: tr } = useTranslation();
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [view, setView] = React.useState("calendar");
   const [weekOffset, setWeekOffset] = React.useState(0);
@@ -476,7 +478,7 @@ function App() {
 
   return !dataLoaded ? (
     <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', background: 'var(--bg)' }}>
-      Ładowanie danych z Supabase...
+      {tr("app.loading")}
     </div>
   ) : (
     <div className="app" style={{ "--accent": accent }}>
@@ -488,7 +490,7 @@ function App() {
             <button key={n.id} className={"nav-item" + (view === n.id ? " on" : "")} onClick={() => setView(n.id)}
               style={view === n.id ? { color: "var(--text)" } : {}}>
               <span className="nav-ico" style={{ color: view === n.id ? accent : "var(--muted)" }}><Icon name={n.icon} size={20} /></span>
-              <span className="nav-label">{n.label}</span>
+              <span className="nav-label">{tr("nav." + n.id)}</span>
               {view === n.id && <span className="nav-active" style={{ background: accent }} />}
             </button>
           ))}
