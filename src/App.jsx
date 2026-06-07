@@ -423,9 +423,58 @@ function App() {
     await syncCustomBlock(b, {}, true); 
   };
 
-  const onReset = () => {
-    // Reset przywraca wygenerowany tydzień, ale ignoruje Custom Blocks - wymaga usunięcia ich z bazy w tej funkcjonalności, zrobimy to później
+  const onReset = async () => {
+    const dts = weekDates(weekOffset).map(dt => {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    });
+
+    for (let i = CUSTOM_BLOCKS.length - 1; i >= 0; i--) {
+      if (dts.includes(CUSTOM_BLOCKS[i].date_str)) {
+        CUSTOM_BLOCKS.splice(i, 1);
+      }
+    }
+
     setWeeks(w => ({ ...w, [weekOffset]: generateWeek(weekOffset) }));
+    await supabase.from('custom_blocks').delete().in('date_str', dts);
+  };
+
+  const onClear = async () => {
+    const bs = weeks[weekOffset] || blocks;
+    const toDelete = [...bs];
+    setHistory(h => ({ past: [...h.past, { type: "clear", blocks: toDelete, weekOffset }], future: [] }));
+    setBlocks(weekOffset, () => []);
+    
+    const dts = weekDates(weekOffset).map(dt => {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    });
+
+    const cbs = toDelete.map(b => ({
+      id: b.id,
+      habit_id: b.habitId,
+      date_str: dts[b.day],
+      start_min: b.start,
+      dur: b.dur,
+      status: b.status,
+      label: b.label,
+      sublabel: b.sublabel,
+      deleted: true
+    }));
+
+    cbs.forEach(cb => {
+      const exist = CUSTOM_BLOCKS.find(x => x.id === cb.id);
+      if (exist) Object.assign(exist, cb);
+      else CUSTOM_BLOCKS.push(cb);
+    });
+
+    if (cbs.length > 0) {
+      await supabase.from('custom_blocks').upsert(cbs);
+    }
   };
 
   const onCreateBlock = async (off, b, skipHistory = false) => {
@@ -649,7 +698,7 @@ function App() {
               blocks={calBlocks} weekOffset={weekOffset} setWeekOffset={setWeekOffset}
               activeCal={activeCal} setActiveCal={setActiveCal}
               overlay={overlay} setOverlay={setOverlay}
-              onUpdate={onUpdate} onDelete={onDelete} onAdd={onAdd} onReset={onReset} onEdit={openEdit}
+              onUpdate={onUpdate} onDelete={onDelete} onAdd={onAdd} onReset={onReset} onClear={onClear} onEdit={openEdit}
               onNewHabit={() => setEditHabit({ habit: { name: "", icon: "✨", color: HABIT_PALETTE[4], category: "Personal", tracked: true, schedule: [{ days: [], start: 9*60, dur: 60 }] }, isNew: true })}
               accent={accent} blockStyle={t.blockStyle} slot={DENSITY[t.density] || 28} today={TODAY_INDEX} tintToday={t.weekendTint}
               clipboard={clipboard} setClipboard={setClipboard} onCreateBlock={onCreateBlock}

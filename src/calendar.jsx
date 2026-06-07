@@ -12,7 +12,7 @@ const MOD = (typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigato
 
 function CalendarView({
   blocks, weekOffset, setWeekOffset, onUpdate, onDelete, onAdd,
-  onReset, onEdit, accent, blockStyle, slot, today, tintToday,
+  onReset, onClear, onEdit, accent, blockStyle, slot, today, tintToday,
   clipboard, setClipboard, onCreateBlock,
   readOnly, overlayBlocks, partner, cals, activeCal, onPickCal, onOpenProfile,
   overlayOn, setOverlay, partnerEnabled, goalsByHabit, undo, redo, onNewHabit,
@@ -281,7 +281,7 @@ function CalendarView({
   return (
     <div className="cal-wrap" style={{ "--col-w": colW + "px", "--cal-w": isContinuous ? "calc(58px + 21 * var(--col-w))" : "100%" }}>
       <CalToolbar weekOffset={weekOffset} setWeekOffset={setWeekOffset} dates={displayDates} isContinuous={isContinuous} toggleContinuous={toggleContinuous}
-        onReset={onReset} accent={accent} readOnly={readOnly} partner={partner}
+        onReset={onReset} onClear={onClear} accent={accent} readOnly={readOnly} partner={partner}
         cals={cals} activeCal={activeCal} onPickCal={onPickCal} onOpenProfile={onOpenProfile}
         overlayOn={overlayOn} setOverlay={setOverlay} partnerEnabled={partnerEnabled} />
 
@@ -489,7 +489,7 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, sele
   );
 }
 
-function CalToolbar({ weekOffset, setWeekOffset, dates, isContinuous, toggleContinuous, onReset, accent, readOnly, partner,
+function CalToolbar({ weekOffset, setWeekOffset, dates, isContinuous, toggleContinuous, onReset, onClear, accent, readOnly, partner,
   cals, activeCal, onPickCal, onOpenProfile, overlayOn, setOverlay, partnerEnabled }) {
   const { t } = useTranslation();
   const start = dates[0], end = dates[dates.length - 1];
@@ -517,7 +517,12 @@ function CalToolbar({ weekOffset, setWeekOffset, dates, isContinuous, toggleCont
             <span className={"ot-sw" + (overlayOn ? " on" : "")} style={overlayOn ? { background: partner.color } : {}}><span className="ot-knob" /></span>
           </button>
         )}
-        {!readOnly && <button className="ghost-btn" onClick={onReset} title="Restore auto-generated blocks">{t("cal.tb.reset")}</button>}
+        {!readOnly && (
+          <div className="cal-reset-group" style={{ display: "flex", gap: 4 }}>
+            <button className="ghost-btn" onClick={onReset} title="Przywróć szablon z nawyków">Przywróć</button>
+            <button className="ghost-btn" onClick={() => { if(confirm("Czy na pewno chcesz usunąć wszystkie bloki z tego tygodnia?")) onClear(); }} title="Wyczyść wszystkie bloki">Wyczyść</button>
+          </div>
+        )}
         <button className="ghost-btn" style={{ padding: "6px 10px", display: "flex", gap: 6, alignItems: "center" }} onClick={toggleContinuous}>
           <Icon name={isContinuous ? "calendar2" : "calendar"} size={14} />
           {isContinuous ? "Płynny (21 dni)" : "Klasyczny (7 dni)"}
