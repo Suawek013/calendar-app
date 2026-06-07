@@ -136,7 +136,7 @@ button{font-family:inherit}
 .qa-action.primary:hover{filter:brightness(1.06)}
 
 /* ---------- calendar ---------- */
-.cal-wrap{display:flex;flex-direction:column;height:100%;position:relative}
+.cal-wrap{display:flex;flex-direction:column;height:100%;position:relative;overflow:hidden}
 .cal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 28px 16px;flex-wrap:wrap}
 .cal-title{font-family:var(--head);font-size:24px;font-weight:600;margin:0;letter-spacing:-.015em;white-space:nowrap}
 .cal-year{font-size:12.5px;color:var(--muted);margin-top:3px;display:block}
@@ -151,14 +151,15 @@ button{font-family:inherit}
   padding:8px 13px;border-radius:9px;cursor:pointer}
 .ghost-btn:hover{background:var(--surface-3);color:var(--text)}
 
-.cal-head{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--border);padding-right:10px}
-.cal-day-head{display:flex;align-items:baseline;gap:7px;justify-content:center;padding:8px 0 10px}
+.cal-head-viewport{overflow:hidden;flex-shrink:0;padding-right:10px}
+.cal-head{display:flex;border-bottom:1px solid var(--border);width:var(--cal-w)}
+.cal-day-head{display:flex;align-items:baseline;gap:7px;justify-content:center;padding:8px 0 10px;width:var(--col-w)}
 .cal-day-name{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
 .cal-day-num{font-family:var(--head);font-size:16px;font-weight:600}
 
-.cal-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding-right:10px}
-.cal-body{position:relative;width:100%}
-.cal-hline{position:absolute;right:0;height:1px;background:var(--border);opacity:.6}
+.cal-scroll{flex:1;overflow-y:auto;overflow-x:auto;padding-right:10px}
+.cal-body{position:relative;width:var(--cal-w);min-height:100%}
+.cal-hline{position:absolute;left:58px;right:0;height:1px;background:var(--border);opacity:.6}
 .cal-hlabel{position:absolute;left:0;width:48px;text-align:right;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
 .cal-col{position:absolute;top:0;bottom:0;height:100%;border-left:1px solid rgba(255,255,255,.04);cursor:copy}
 .cal-drop{position:absolute;border:1.5px dashed;border-radius:9px;background:rgba(255,255,255,.03);z-index:1;pointer-events:none}

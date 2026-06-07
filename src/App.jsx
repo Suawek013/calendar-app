@@ -636,14 +636,30 @@ function App() {
           onGoCalendar={goCalendar} onMarkHabits={() => setMark(true)} onAdd={() => onAdd(weekOffset)}
           accent={accent} period={period} setPeriod={setPeriod}
           goals={goals} onOpenGoal={openGoal} onGoGoals={goGoals} />}
-        {view === "calendar" && <CalendarView blocks={shownBlocks} weekOffset={weekOffset} setWeekOffset={setWeekOffset}
-          onUpdate={onUpdate} onDelete={onDelete} onAdd={onAdd} onReset={onReset} onEdit={openEdit}
-          accent={accent} blockStyle={t.blockStyle} slot={DENSITY[t.density] || 28} today={TODAY_INDEX} tintToday={t.weekendTint}
-          clipboard={clipboard} setClipboard={setClipboard} onCreateBlock={onCreateBlock}
-          readOnly={readOnly} overlayBlocks={overlayBlocks} partner={partner}
-          cals={calsList} activeCal={activeCal} onPickCal={setActiveCal} onOpenProfile={() => setView("profile")}
-          overlayOn={overlay} setOverlay={setOverlay} partnerEnabled={true} goalsByHabit={goalsByHabit}
-          undo={undo} redo={redo} />}
+        {view === "calendar" && (() => {
+          const calBlocks = [];
+          [-1, 0, 1].forEach(dOff => {
+            const wOff = weekOffset + dOff;
+            const wBlocks = weeks[wOff] || blocks; // fallback
+            wBlocks.forEach(b => calBlocks.push({ ...b, dOff }));
+          });
+
+          return (
+            <CalendarView
+              blocks={calBlocks} weekOffset={weekOffset} setWeekOffset={setWeekOffset}
+              activeCal={activeCal} setActiveCal={setActiveCal}
+              overlay={overlay} setOverlay={setOverlay}
+              onUpdate={onUpdate} onDelete={onDelete} onAdd={onAdd} onReset={onReset} onEdit={openEdit}
+              onNewHabit={() => setEditHabit({ habit: { name: "", icon: "✨", color: HABIT_PALETTE[4], category: "Personal", tracked: true, schedule: [{ days: [], start: 9*60, dur: 60 }] }, isNew: true })}
+              accent={accent} blockStyle={t.blockStyle} slot={DENSITY[t.density] || 28} today={TODAY_INDEX} tintToday={t.weekendTint}
+              clipboard={clipboard} setClipboard={setClipboard} onCreateBlock={onCreateBlock}
+              readOnly={readOnly} overlayBlocks={overlayBlocks} partner={partner}
+              cals={calsList} onPickCal={setActiveCal} onOpenProfile={() => setView("profile")}
+              overlayOn={overlay} partnerEnabled={true} goalsByHabit={goalsByHabit}
+              undo={undo} redo={redo}
+            />
+          );
+        })()}
         {view === "goals" && (detailGoal
           ? <GoalDetail goal={detailGoal} onBack={() => setGoalId(null)} onEdit={onEditGoal}
               onLog={(entry) => onLogProgress(goalId, entry)} onToggleStep={(sid) => onToggleStep(goalId, sid)}

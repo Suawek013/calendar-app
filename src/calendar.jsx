@@ -15,26 +15,39 @@ function CalendarView({
   onReset, onEdit, accent, blockStyle, slot, today, tintToday,
   clipboard, setClipboard, onCreateBlock,
   readOnly, overlayBlocks, partner, cals, activeCal, onPickCal, onOpenProfile,
-  overlayOn, setOverlay, partnerEnabled, goalsByHabit, undo, redo,
+  overlayOn, setOverlay, partnerEnabled, goalsByHabit, undo, redo, onNewHabit,
 }) {
   const { t } = useTranslation();
   const SLOT = slot;
   const totalSlots = (GRID_END - GRID_START) / 30;
   const totalH = totalSlots * SLOT;
-  const dates = weekDates(weekOffset);
+  const dates = [
+    ...weekDates(weekOffset - 1),
+    ...weekDates(weekOffset),
+    ...weekDates(weekOffset + 1)
+  ];
   const order = weekColsOrder();                      // semantic weekday per display column
+  const order21 = [...order, ...order, ...order];
   const wdToCol = {}; order.forEach((wd, i) => { wdToCol[wd] = i; });
 
+  const headScrollRef = React.useRef(null);
   const scrollRef = React.useRef(null);
   const bodyRef = React.useRef(null);
-  const [bodyW, setBodyW] = React.useState(900);
+  const [viewW, setViewW] = React.useState(900);
   React.useLayoutEffect(() => {
-    if (!bodyRef.current) return;
-    const ro = new ResizeObserver(() => setBodyW(bodyRef.current.offsetWidth));
-    ro.observe(bodyRef.current); setBodyW(bodyRef.current.offsetWidth);
+    if (!scrollRef.current) return;
+    const ro = new ResizeObserver(() => setViewW(scrollRef.current.offsetWidth));
+    ro.observe(scrollRef.current); setViewW(scrollRef.current.offsetWidth);
     return () => ro.disconnect();
   }, []);
-  const colW = (bodyW - GUTTER) / 7;
+  const colW = Math.max(130, (viewW - GUTTER - 10) / 7);
+
+  React.useLayoutEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = GUTTER + 7 * colW;
+      scrollRef.current.scrollTop = 1.5 * SLOT;
+    }
+  }, [weekOffset]);
 
   const [drag, setDrag] = React.useState(null);
   const [quick, setQuick] = React.useState(null);
@@ -81,11 +94,11 @@ function CalendarView({
   }
   function cutBlock(b) { copyBlock(b); onDelete(b.id); }
 
-  React.useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 1.5 * SLOT; }, []);
+  function cutBlock(b) { copyBlock(b); onDelete(b.id); }
 
   function geom() {
     const r = bodyRef.current.getBoundingClientRect();
-    return { left: r.left, top: r.top, scroll: scrollRef.current.scrollTop };
+    return { left: r.left, top: r.top };
   }
 
   function startDrag(e, b, mode) {
@@ -93,17 +106,19 @@ function CalendarView({
     if (e.button != null && e.button !== 0) return;
     e.stopPropagation();
     const g = geom();
-    const blockLeft = GUTTER + wdToCol[b.day] * colW + 3;
+    const dOff = b.dOff || 0;
+    const col = wdToCol[b.day] + (dOff + 1) * 7;
+    const blockLeft = GUTTER + col * colW + 3;
     const blockTop = (b.start - GRID_START) / 30 * SLOT;
     dragInfo.current = {
-      id: b.id, mode, dur: b.dur,
+      id: b.id, mode, dur: b.dur, originalDOff: dOff,
       grabDX: (e.clientX - g.left) - blockLeft,
       grabDY: (e.clientY - g.top) - blockTop,
       startX: e.clientX, startY: e.clientY,
       originalDay: b.day,
     };
-    setDrag({ id: b.id, day: b.day, start: b.start, dur: b.dur, moved: false, mode, isClone: mode === "clone" });
-    previewRef.current = { day: b.day, start: b.start, dur: b.dur, moved: false, isClone: mode === "clone" };
+    setDrag({ id: b.id, day: b.day, dOff, start: b.start, dur: b.dur, moved: false, mode, isClone: mode === "clone" });
+    previewRef.current = { day: b.day, dOff, start: b.start, dur: b.dur, moved: false, isClone: mode === "clone" };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   }
@@ -116,22 +131,23 @@ function CalendarView({
     if (di.mode === "move" || di.mode === "clone") {
       const px = (e.clientX - g.left) - di.grabDX;
       const py = (e.clientY - g.top) - di.grabDY;
-      let ci = Math.round((px - GUTTER) / colW); ci = Math.max(0, Math.min(6, ci));
-      const day = order[ci];
+      let ci = Math.round((px - GUTTER) / colW); ci = Math.max(0, Math.min(20, ci));
+      const targetDay = order21[ci];
+      const targetDOff = Math.floor(ci / 7) - 1;
       let slotIx = Math.round(py / SLOT);
       let start = GRID_START + slotIx * 30;
       start = Math.max(GRID_START, Math.min(GRID_END - di.dur, start));
       const isClone = e.altKey || di.mode === "clone";
-      previewRef.current = { day, start, dur: di.dur, moved, isClone };
-      setDrag(d => ({ ...d, day, start, moved, isClone }));
+      previewRef.current = { day: targetDay, dOff: targetDOff, start, dur: di.dur, moved, isClone };
+      setDrag(d => ({ ...d, day: targetDay, dOff: targetDOff, start, moved, isClone }));
     } else {
       const py = (e.clientY - g.top);
       const b = blocks.find(x => x.id === di.id);
       const topPx = (b.start - GRID_START) / 30 * SLOT;
       let slots = Math.max(1, Math.round((py - topPx) / SLOT));
       let dur = Math.min(slots * 30, GRID_END - b.start);
-      previewRef.current = { day: b.day, start: b.start, dur, moved, isClone: false };
-      setDrag(d => ({ ...d, day: b.day, start: b.start, dur, moved, isClone: false }));
+      previewRef.current = { day: b.day, dOff: di.originalDOff, start: b.start, dur, moved, isClone: false };
+      setDrag(d => ({ ...d, day: b.day, dOff: di.originalDOff, start: b.start, dur, moved, isClone: false }));
     }
   }
 
@@ -146,9 +162,15 @@ function CalendarView({
     
     if (d.isClone && (di.mode === "move" || di.mode === "clone")) {
       const b = blocks.find(x => x.id === di.id);
-      onCreateBlock(weekOffset, { ...b, day: d.day, start: d.start, dur: d.dur, status: "planned", id: undefined });
+      onCreateBlock(weekOffset + d.dOff, { ...b, day: d.day, start: d.start, dur: d.dur, status: "planned", id: undefined });
     } else {
-      if (di.mode === "move") onUpdate(di.id, { day: d.day, start: d.start, template: false });
+      if (di.mode === "move") {
+         if (d.dOff !== di.originalDOff) {
+             onUpdate(di.id, { day: d.day, start: d.start, week_offset: weekOffset + d.dOff, template: false });
+         } else {
+             onUpdate(di.id, { day: d.day, start: d.start, template: false });
+         }
+      }
       else onUpdate(di.id, { dur: d.dur, template: false });
     }
   }
@@ -160,25 +182,25 @@ function CalendarView({
     onUpdate(b.id, { status: next });
   }
 
-  function cellAt(e, day) {
+  function cellAt(e, day, dOff) {
     const g = geom();
     const py = (e.clientY - g.top);
     let slotIx = Math.floor(py / SLOT);
     let start = Math.max(GRID_START, Math.min(GRID_END - 30, GRID_START + slotIx * 30));
-    return { day, start };
+    return { day, start, dOff };
   }
-  function emptyClick(e, day) {
+  function emptyClick(e, day, dOff) {
     if (drag || readOnly) return;
     setSelId(null);
-    const c = cellAt(e, day);
-    setQuick({ day, start: Math.min(c.start, GRID_END - 60), x: e.clientX, y: e.clientY });
+    const c = cellAt(e, day, dOff);
+    setQuick({ day, start: Math.min(c.start, GRID_END - 60), dOff, x: e.clientX, y: e.clientY });
   }
-  function trackCell(e, day) { hoverCellRef.current = cellAt(e, day); }
-  function colContext(e, day) {
+  function trackCell(e, day, dOff) { hoverCellRef.current = cellAt(e, day, dOff); }
+  function colContext(e, day, dOff) {
     e.preventDefault();
     if (readOnly) return;
-    const cell = cellAt(e, day);
-    setMenu({ x: e.clientX, y: e.clientY, kind: "grid", day: cell.day, start: cell.start });
+    const cell = cellAt(e, day, dOff);
+    setMenu({ x: e.clientX, y: e.clientY, kind: "grid", day: cell.day, start: cell.start, dOff: cell.dOff });
   }
   function blockContext(e, b) {
     e.preventDefault(); e.stopPropagation();
@@ -241,7 +263,7 @@ function CalendarView({
   for (let m = GRID_START; m <= GRID_END; m += 60) hours.push(m);
 
   return (
-    <div className="cal-wrap">
+    <div className="cal-wrap" style={{ "--col-w": colW + "px", "--cal-w": "calc(58px + 21 * var(--col-w))" }}>
       <CalToolbar weekOffset={weekOffset} setWeekOffset={setWeekOffset} dates={dates}
         onReset={onReset} accent={accent} readOnly={readOnly} partner={partner}
         cals={cals} activeCal={activeCal} onPickCal={onPickCal} onOpenProfile={onOpenProfile}
@@ -257,20 +279,24 @@ function CalendarView({
         </div>
       )}
 
-      <div className="cal-head" style={{ paddingLeft: GUTTER }}>
-        {order.map((wd, i) => {
-          const isToday = weekOffset === 0 && wd === today;
-          return (
-            <div key={i} className="cal-day-head" style={{
-              borderTop: isToday ? `2px solid ${accent}` : "2px solid transparent" }}>
-              <span className="cal-day-name" style={{ color: isToday ? accent : "var(--muted)" }}>{DAYS[wd]}</span>
-              <span className="cal-day-num" style={{ color: isToday ? "var(--text)" : "var(--muted2)" }}>{dates[i].getDate()}</span>
-            </div>
-          );
-        })}
+      <div className="cal-head-viewport" ref={headScrollRef}>
+        <div className="cal-head">
+          <div style={{ width: GUTTER, flexShrink: 0 }} />
+          {order21.map((wd, i) => {
+            const dOff = Math.floor(i / 7) - 1;
+            const isToday = (weekOffset + dOff) === 0 && wd === today;
+            return (
+              <div key={i} className="cal-day-head" style={{
+                borderTop: isToday ? `2px solid ${accent}` : "2px solid transparent" }}>
+                <span className="cal-day-name" style={{ color: isToday ? accent : "var(--muted)" }}>{DAYS[wd]}</span>
+                <span className="cal-day-num" style={{ color: isToday ? "var(--text)" : "var(--muted2)" }}>{dates[i].getDate()}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="cal-scroll" ref={scrollRef}>
+      <div className="cal-scroll" ref={scrollRef} onScroll={(e) => { if (headScrollRef.current) headScrollRef.current.scrollLeft = e.target.scrollLeft; }}>
         <div className="cal-body" ref={bodyRef} style={{ height: totalH }}>
           {hours.map(m => {
             const top = (m - GRID_START) / 30 * SLOT;
@@ -281,12 +307,13 @@ function CalendarView({
               </React.Fragment>
             );
           })}
-          {order.map((wd, i) => {
-            const isToday = weekOffset === 0 && wd === today;
+          {order21.map((wd, i) => {
+            const dOff = Math.floor(i / 7) - 1;
+            const isToday = (weekOffset + dOff) === 0 && wd === today;
             return (
-              <div key={i} className={"cal-col" + (readOnly ? " ro" : "")} onClick={(e) => emptyClick(e, wd)}
-                onContextMenu={(e) => colContext(e, wd)}
-                onMouseMove={(e) => trackCell(e, wd)}
+              <div key={i} className={"cal-col" + (readOnly ? " ro" : "")} onClick={(e) => emptyClick(e, wd, dOff)}
+                onContextMenu={(e) => colContext(e, wd, dOff)}
+                onMouseMove={(e) => trackCell(e, wd, dOff)}
                 style={{ left: GUTTER + i * colW, width: colW,
                   background: (isToday && tintToday) ? "rgba(255,255,255,0.018)" : "transparent" }} />
             );
@@ -310,8 +337,9 @@ function CalendarView({
 
           {/* partner overlay ghosts (behind my blocks) */}
           {overlayBlocks && overlayBlocks.map(b => {
+            const dOff = b.dOff || 0;
             const top = (b.start - GRID_START) / 30 * SLOT, height = b.dur / 30 * SLOT;
-            const left = GUTTER + wdToCol[b.day] * colW + 3, width = colW - 6;
+            const left = GUTTER + (wdToCol[b.day] + (dOff + 1) * 7) * colW + 3, width = colW - 6;
             return (
               <div key={"g" + b.id} className="cal-ghost"
                 style={{ top, left, width, height, background: hexA(partner.color, 0.1),
@@ -321,9 +349,9 @@ function CalendarView({
             );
           })}
 
-          {drag && drag.moved && drag.mode === "move" && (
+          {drag && (
             <div className="cal-drop" style={{
-              left: GUTTER + wdToCol[drag.day] * colW + 2, width: colW - 4,
+              left: GUTTER + (wdToCol[drag.day] + ((drag.dOff || 0) + 1) * 7) * colW + 2, width: colW - 4,
               top: (drag.start - GRID_START) / 30 * SLOT,
               height: drag.dur / 30 * SLOT, borderColor: accent }} />
           )}
@@ -331,10 +359,12 @@ function CalendarView({
           {blocks.map(b => {
             const isDragging = drag && drag.id === b.id;
             const isCloning = isDragging && drag.isClone;
+            const dOff = isDragging && !isCloning ? drag.dOff : (b.dOff || 0);
+            const col = wdToCol[isDragging && !isCloning ? drag.day : b.day] + (dOff + 1) * 7;
             
             const orig = (
               <Block key={b.id + (isCloning ? "_orig" : "")} b={b} colW={colW} SLOT={SLOT} 
-                col={wdToCol[isDragging && !isCloning ? drag.day : b.day]} 
+                col={col} 
                 start={isDragging && !isCloning ? drag.start : b.start} 
                 dur={isDragging && !isCloning ? drag.dur : b.dur}
                 style={blockStyle} dragging={isDragging && drag.moved && !isCloning} readOnly={readOnly}
@@ -347,7 +377,7 @@ function CalendarView({
             if (!isCloning) return orig;
 
             const clone = (
-              <Block key={b.id + "_clone"} b={b} colW={colW} SLOT={SLOT} col={wdToCol[drag.day]} start={drag.start} dur={drag.dur}
+              <Block key={b.id + "_clone"} b={b} colW={colW} SLOT={SLOT} col={wdToCol[drag.day] + (drag.dOff + 1) * 7} start={drag.start} dur={drag.dur}
                 style={blockStyle} dragging={drag.moved} readOnly={readOnly}
                 onDown={()=>{}} onStatus={()=>{}} onCtx={()=>{}} onHover={()=>{}}
                 goals={goalsByHabit && goalsByHabit[b.habitId]} />
@@ -360,13 +390,14 @@ function CalendarView({
 
       {quick && <QuickAdd info={quick} accent={accent}
         onClose={() => setQuick(null)}
-        onAdd={(habitId) => { onAdd(weekOffset, { ...quick, habitId }); setQuick(null); }} />}
+        onNewHabit={() => { onNewHabit(); setQuick(null); }}
+        onAdd={(habitId) => { onCreateBlock(weekOffset + quick.dOff, { ...quick, habitId }); setQuick(null); }} />}
 
       {menu && <ContextMenu menu={menu} accent={accent} hasClip={!!clipboard} clip={clipboard} readOnly={readOnly}
         onClose={() => setMenu(null)}
         onCopy={copyBlock} onDuplicate={duplicate} onCut={cutBlock} onPaste={pasteAt}
         onEdit={onEdit} onStatus={(b, s) => onUpdate(b.id, { status: s })} onDelete={onDelete}
-        onNew={(day, start, x, y) => setQuick({ day, start, x, y })} />}
+        onNew={(day, start, dOff, x, y) => setQuick({ day, start, dOff, x, y })} />}
 
       {toast && <div className="cal-toast"><Icon name="check" size={14} stroke={2.6} style={{ color: accent }} />{toast}</div>}
     </div>
@@ -437,7 +468,7 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, sele
 function CalToolbar({ weekOffset, setWeekOffset, dates, onReset, accent, readOnly, partner,
   cals, activeCal, onPickCal, onOpenProfile, overlayOn, setOverlay, partnerEnabled }) {
   const { t } = useTranslation();
-  const start = dates[0], end = dates[6];
+  const start = dates[0], end = dates[20];
   const mo = (d) => d.toLocaleString("en-US", { month: "short" });
   const range = mo(start) === mo(end)
     ? `${mo(start)} ${start.getDate()} – ${end.getDate()}`
@@ -512,7 +543,7 @@ function CalPicker({ cals, activeCal, onPick, onOpenProfile, accent }) {
   );
 }
 
-function QuickAdd({ info, onClose, onAdd, accent }) {
+function QuickAdd({ info, onClose, onAdd, onNewHabit, accent }) {
   const { t } = useTranslation();
   const ref = React.useRef(null);
   React.useEffect(() => {
@@ -525,7 +556,10 @@ function QuickAdd({ info, onClose, onAdd, accent }) {
   if (HABITS.length === 0) {
     return (
       <div ref={ref} className="quickadd" style={{ left: x, top: info.y + 8, padding: 15, color: "var(--text)" }}>
-        {t("cal.qa.noHabits")}
+        <div style={{ marginBottom: 12 }}>{t("cal.qa.noHabits")}</div>
+        <button className="qa-add" onClick={onNewHabit} style={{ background: accent }}>
+          <Icon name="plus" size={15} /> {t("cal.ctx.newHabit")}
+        </button>
       </div>
     );
   }
@@ -542,6 +576,9 @@ function QuickAdd({ info, onClose, onAdd, accent }) {
           </button>
         ))}
       </div>
+      <button className="qa-add" onClick={onNewHabit} style={{ background: accent, marginTop: 10 }}>
+        <Icon name="plus" size={15} /> {t("cal.ctx.newHabit")}
+      </button>
     </div>
   );
 }
