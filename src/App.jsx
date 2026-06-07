@@ -1,7 +1,7 @@
 // App.jsx — shell, navigation, state, modals, tweaks
 import React from 'react';
 import { Icon } from './components.jsx';
-import { generateWeekFromData, TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, CUSTOM_BLOCKS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12 } from './data.jsx';
+import { generateWeekFromData, TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, CUSTOM_BLOCKS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12, weekDates } from './data.jsx';
 import { supabase } from './supabase.js';
 import { useTranslation } from './i18n.jsx';
 import { GOALS_SEED, GOAL_YEAR } from './goals-data.jsx';

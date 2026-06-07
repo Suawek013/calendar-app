@@ -66,7 +66,7 @@ function rng(seed) {
 const TODAY_INDEX = 3;
 const BASE_MONDAY = new Date(2026, 5, 1);
 
-function weekDates(offset) {
+export function weekDates(offset) {
   const cols = WEEK_COLS || [0,1,2,3,4,5,6];
   const shift = cols[0] === 6 ? -1 : 0;   // Sunday-start weeks begin a day earlier
   const out = [];
