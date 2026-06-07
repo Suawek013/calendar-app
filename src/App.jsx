@@ -482,7 +482,7 @@ function App() {
     <div className="app" style={{ "--accent": accent }}>
       {/* desktop sidebar */}
       <nav className="sidebar">
-        <div className="brand"><span className="brand-mark" style={{ background: accent }} /><span className="brand-name">Cadence</span></div>
+        <div className="brand"><span className="brand-mark" style={{ background: accent }} /><span className="brand-name">Calmate</span></div>
         <div className="nav-items">
           {NAV.map(n => (
             <button key={n.id} className={"nav-item" + (view === n.id ? " on" : "")} onClick={() => setView(n.id)}

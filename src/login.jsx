@@ -43,7 +43,7 @@ function LoginView({ accent = "#3fb98a" }) {
       <div className="login-card">
         <div className="login-brand">
           <span className="brand-mark" style={{ background: accent }} />
-          <span className="brand-name">Cadence</span>
+          <span className="brand-name">Calmate</span>
         </div>
         
         <h2 className="login-title">{isRegister ? "Create an account" : "Welcome back"}</h2>
