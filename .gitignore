@@ -6,3 +6,11 @@ dist-ssr
 .env.*
 !.env.example
 .DS_Store
+
+# Test scripts
+test-login.js
+test-template-editor.js
+create-test-account.js
+
+# VS Code workspaces
+*.code-workspace

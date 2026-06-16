@@ -306,8 +306,8 @@ function TemplateEditorModal({ onClose, accent }) {
   const [blocks, setBlocks] = React.useState(() => {
     const initBlocks = [];
     HABITS.forEach(h => {
-      h.schedule.forEach((s, sIdx) => {
-        s.days.forEach(d => {
+      (h.schedule || []).forEach((s, sIdx) => {
+        (s.days || []).forEach(d => {
           initBlocks.push({
             id: `t_${h.id}_${sIdx}_${d}_${s.start}`,
             habitId: h.id, day: d, start: s.start, dur: s.dur, label: h.name, color: h.color, icon: h.icon, template: true, status: "planned"
@@ -334,7 +334,8 @@ function TemplateEditorModal({ onClose, accent }) {
   const onAdd = (habitId) => {};
 
   const onCreateBlock = (off, b) => {
-    const nb = { ...b, id: "n" + Date.now() + Math.random().toString(36).slice(2, 5), template: true, status: "planned" };
+    const dur = b.dur || 60;
+    const nb = { ...b, dur, id: "n" + Date.now() + Math.random().toString(36).slice(2, 5), template: true, status: "planned" };
     setBlocks(bs => [...bs, nb]);
     return nb;
   };
@@ -353,7 +354,7 @@ function TemplateEditorModal({ onClose, accent }) {
     });
 
     for (const h of newHabits) {
-      await supabase.from('habits').update({ schedule: h.schedule }).eq('id', h.id);
+      await supabase.from('habits').update({ schedule: JSON.stringify(h.schedule) }).eq('id', h.id);
     }
     
     onClose();
