@@ -2,12 +2,12 @@
 // Exposes: EditModal, ColorSwatches
 
 import React from 'react';
-import { GRID_START, GRID_END, habitById, HABITS, min12, DAYS, HABIT_PALETTE } from './data.jsx';
+import { GRID_START, GRID_END, habitById, HABITS, min12, DAYS, HABIT_PALETTE, TIME_STEP } from './data.jsx';
 import { Icon, hexA, Segmented, StatusDot } from './components.jsx';
 import { useTranslation } from './i18n.jsx';
 function timeOptions() {
   const out = [];
-  for (let m = GRID_START; m <= GRID_END; m += 30) out.push(m);
+  for (let m = GRID_START; m <= GRID_END; m += TIME_STEP) out.push(m);
   return out;
 }
 
@@ -59,7 +59,7 @@ function EditModal({ block, isNew, onSave, onDelete, onClose, accent }) {
           <div style={{ flex: 1 }}>
             <div className="modal-section-label">{t("block.modal.start")}</div>
             <select className="time-select" value={b.start} onChange={(e) => {
-              const ns = +e.target.value; const dur = Math.max(30, b.dur);
+              const ns = +e.target.value; const dur = Math.max(TIME_STEP, b.dur);
               setB(p => ({ ...p, start: ns, dur: Math.min(dur, GRID_END - ns) })); }}>
               {times.slice(0, -1).map(m => <option key={m} value={m}>{min12(m)}</option>)}
             </select>
@@ -111,6 +111,7 @@ function EditModal({ block, isNew, onSave, onDelete, onClose, accent }) {
 }
 
 function ColorSwatches({ value, onChange }) {
+  const isCustom = value && !HABIT_PALETTE.includes(value);
   return (
     <div className="swatch-grid">
       {HABIT_PALETTE.map(c => (
@@ -118,6 +119,34 @@ function ColorSwatches({ value, onChange }) {
           style={{ background: c, outline: value === c ? "2px solid #fff" : "2px solid transparent",
             outlineOffset: 2 }} />
       ))}
+      <div className="swatch" style={{ 
+        position: "relative", 
+        outline: isCustom ? "2px solid #fff" : "2px solid transparent", 
+        outlineOffset: 2, 
+        background: isCustom ? value : "var(--surface-2)",
+        border: isCustom ? "none" : "1px solid var(--border)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        overflow: "hidden"
+      }}>
+        {!isCustom && <Icon name="plus" size={16} stroke={2.5} style={{ color: "var(--text)", pointerEvents: "none" }} />}
+        <input type="color" value={value || "#ffffff"} 
+          onChange={e => onChange(e.target.value)} 
+          onBlur={e => {
+            const c = e.target.value;
+            if (!HABIT_PALETTE.includes(c)) {
+              HABIT_PALETTE.push(c);
+              try {
+                const saved = JSON.parse(localStorage.getItem("cad_colors") || "[]");
+                if (!saved.includes(c)) {
+                  saved.push(c);
+                  localStorage.setItem("cad_colors", JSON.stringify(saved));
+                }
+              } catch (e) {}
+              onChange(c);
+            }
+          }}
+          style={{ opacity: 0, position: "absolute", inset: -10, width: "200%", height: "200%", cursor: "pointer" }} />
+      </div>
     </div>
   );
 }

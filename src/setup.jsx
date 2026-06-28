@@ -2,7 +2,7 @@
 // Exposes: SetupView, HabitForm
 
 import React from 'react';
-import { HABITS, HABIT_PALETTE, DAYS, min12, GRID_START, GRID_END, CATEGORIES } from './data.jsx';
+import { HABITS, HABIT_PALETTE, DAYS, min12, GRID_START, GRID_END, CATEGORIES, EMOJIS, TIME_STEP } from './data.jsx';
 import { Icon, hexA } from './components.jsx';
 import { ColorSwatches, EditModal } from './modal.jsx';
 import { useTranslation } from './i18n.jsx';
@@ -15,7 +15,7 @@ function SetupView({ accent, onEditHabit, onAddHabit, bump, wake, bed, setWake, 
   const [isEditingTemplate, setIsEditingTemplate] = React.useState(false);
   
   if (isEditingTemplate) {
-    return <TemplateEditorModal accent={accent} onClose={() => { setIsEditingTemplate(false); bump(); }} />;
+    return <TemplateEditorModal accent={accent} onClose={() => { setIsEditingTemplate(false); bump(); }} onAddHabit={onAddHabit} />;
   }
 
   return (
@@ -103,8 +103,8 @@ function HabitRow({ h, onEdit }) {
 
 function SleepCard({ wake, bed, setWake, setBed, accent }) {
   const { t } = useTranslation();
-  const wakeOpts = []; for (let m = 4*60; m <= 10*60; m += 30) wakeOpts.push(m);
-  const bedOpts = []; for (let m = 20*60; m <= 24*60; m += 30) bedOpts.push(m);
+  const wakeOpts = []; for (let m = 4*60; m <= 10*60; m += TIME_STEP) wakeOpts.push(m);
+  const bedOpts = []; for (let m = 20*60; m <= 24*60; m += TIME_STEP) bedOpts.push(m);
   const lbl = (m) => m >= 24*60 ? t("setup.sleep.midnight") : min12(m);
   const hrs = Math.round((bed - wake) / 60 * 10) / 10;
   return (
@@ -186,11 +186,11 @@ function HabitForm({ habit, isNew, onSave, onDelete, onClose, accent, onAddCateg
     set("category", name);
     setNewCat(""); setAddingCat(false);
   };
-  const EMOJIS = ["💪","🔥","📚","🎓","❤️","🎮","💼","🏃","🧘","🎨","🍳","🌙","☕","🎸","💧","✍️"];
-  const times = []; for (let m = GRID_START; m <= GRID_END; m += 30) times.push(m);
+
+  const times = []; for (let m = GRID_START; m <= GRID_END; m += TIME_STEP) times.push(m);
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" style={{ zIndex: 100 }} onClick={onClose}>
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-kicker">{isNew ? t("setup.form.new") : t("setup.form.edit")}</span>
@@ -214,7 +214,7 @@ function HabitForm({ habit, isNew, onSave, onDelete, onClose, accent, onAddCateg
           
           <div style={{ position: "relative" }}>
             <button className={"emoji-btn" + (showEmojiPicker ? " on" : "")} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              style={{ color: "var(--text)" }}>
+              style={{ color: "var(--text)", width: "100%", height: "100%" }}>
               <Icon name="plus" size={16} stroke={2.5} />
             </button>
             {showEmojiPicker && (
@@ -222,10 +222,23 @@ function HabitForm({ habit, isNew, onSave, onDelete, onClose, accent, onAddCateg
                 <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setShowEmojiPicker(false)} />
                 <div style={{ position: "relative", zIndex: 100 }}>
                   <EmojiPicker 
-                    onEmojiClick={(e) => { set("icon", e.emoji); setShowEmojiPicker(false); }} 
+                    onEmojiClick={(e) => {
+                      const icon = e.emoji;
+                      set("icon", icon);
+                      setShowEmojiPicker(false);
+                      if (!EMOJIS.includes(icon)) {
+                        EMOJIS.push(icon);
+                        try {
+                          const saved = JSON.parse(localStorage.getItem("cad_emojis") || "[]");
+                          if (!saved.includes(icon)) {
+                            saved.push(icon);
+                            localStorage.setItem("cad_emojis", JSON.stringify(saved));
+                          }
+                        } catch (e) {}
+                      }
+                    }} 
                     theme="dark"
                     skinTonesDisabled
-                    searchDisabled
                     width={300}
                     height={400}
                   />
@@ -269,7 +282,7 @@ function HabitForm({ habit, isNew, onSave, onDelete, onClose, accent, onAddCateg
             <div className="modal-section-label">{t("setup.form.from")}</div>
             <select className="time-select" value={s0.start} onChange={(e) => {
               const ns = +e.target.value;
-              setSlot({ start: ns, dur: Math.max(30, Math.min(s0.dur, GRID_END - ns)) }); }}>
+              setSlot({ start: ns, dur: Math.max(TIME_STEP, Math.min(s0.dur, GRID_END - ns)) }); }}>
               {times.slice(0, -1).map(m => <option key={m} value={m}>{min12(m)}</option>)}
             </select>
           </div>
@@ -298,7 +311,7 @@ function HabitForm({ habit, isNew, onSave, onDelete, onClose, accent, onAddCateg
   );
 }
 
-function TemplateEditorModal({ onClose, accent }) {
+function TemplateEditorModal({ onClose, accent, onAddHabit }) {
   const { t } = useTranslation();
   const [clipboard, setClipboard] = React.useState(null);
   const [editingBlock, setEditingBlock] = React.useState(null);
@@ -362,16 +375,18 @@ function TemplateEditorModal({ onClose, accent }) {
 
   return (
     <div className="modal-backdrop" style={{ padding: 0, background: "var(--bg)", zIndex: 90 }}>
-      <CalendarView 
-        blocks={blocks} weekOffset={0} setWeekOffset={() => {}} 
-        onUpdate={onUpdate} onDelete={onDelete} onAdd={onAdd} onCreateBlock={onCreateBlock}
-        onEdit={onEdit}
-        accent={accent} blockStyle="tint" slot={28} today={-1} tintToday={false}
-        clipboard={clipboard} setClipboard={setClipboard} 
-        readOnly={false} isTemplate={true} onSaveTemplate={onSave} onCancelTemplate={onClose}
-        cals={[]} onNewHabit={() => alert("Dodaj nawyk w głównym widoku, aby móc użyć go w szablonie.")}
-        undo={() => {}} redo={() => {}}
-      />
+      <div style={{ width: "100%", height: "100%" }}>
+        <CalendarView 
+          blocks={blocks} weekOffset={0} setWeekOffset={() => {}} 
+          onUpdate={onUpdate} onDelete={onDelete} onAdd={onAdd} onCreateBlock={onCreateBlock}
+          onEdit={onEdit}
+          accent={accent} blockStyle="tint" slot={28} today={-1} tintToday={false}
+          clipboard={clipboard} setClipboard={setClipboard} 
+          readOnly={false} isTemplate={true} onSaveTemplate={onSave} onCancelTemplate={onClose}
+          cals={[]} onNewHabit={onAddHabit}
+          undo={() => {}} redo={() => {}}
+        />
+      </div>
       {editingBlock && (
         <EditModal 
           block={editingBlock} 

@@ -3,7 +3,7 @@
 // Exposes: CalendarView
 
 import React from 'react';
-import { GRID_END, GRID_START, weekDates, weekColsOrder, habitById, DAYS, min12, TODAY_INDEX, HABITS } from './data.jsx';
+import { GRID_END, GRID_START, weekDates, weekColsOrder, habitById, DAYS, min12, TODAY_INDEX, HABITS, TIME_STEP } from './data.jsx';
 import { Icon, StatusDot, hexA } from './components.jsx';
 import { areaById, goalStatus, fmtNum } from './goals-data.jsx';
 import { useTranslation } from './i18n.jsx';
@@ -22,9 +22,8 @@ function CalendarView({
   const [isContinuous, setIsContinuous] = React.useState(() => localStorage.getItem("cal_continuous") !== "false");
   const toggleContinuous = () => setIsContinuous(c => { const n = !c; localStorage.setItem("cal_continuous", n); return n; });
 
-  const SLOT = slot;
-  const totalSlots = (GRID_END - GRID_START) / 30;
-  const totalH = totalSlots * SLOT;
+  const totalSlots = (GRID_END - GRID_START) / TIME_STEP;
+  // SLOT is calculated dynamically below
   
   const dates21 = [
     ...weekDates(weekOffset - 1),
@@ -41,12 +40,24 @@ function CalendarView({
   const scrollRef = React.useRef(null);
   const bodyRef = React.useRef(null);
   const [viewW, setViewW] = React.useState(900);
+  const [viewH, setViewH] = React.useState(totalSlots * slot); // default based on prop
+
   React.useLayoutEffect(() => {
     if (!scrollRef.current) return;
-    const ro = new ResizeObserver(() => setViewW(scrollRef.current.offsetWidth));
-    ro.observe(scrollRef.current); setViewW(scrollRef.current.offsetWidth);
+    const ro = new ResizeObserver(() => {
+      setViewW(scrollRef.current.offsetWidth);
+      const h = scrollRef.current.offsetHeight;
+      if (h > 100) setViewH(h - 4);
+    });
+    ro.observe(scrollRef.current);
+    setViewW(scrollRef.current.offsetWidth);
+    const h = scrollRef.current.offsetHeight;
+    if (h > 100) setViewH(h - 4);
     return () => ro.disconnect();
   }, []);
+
+  const SLOT = viewH / totalSlots;
+  const totalH = viewH;
   const colW = Math.max(130, (viewW - GUTTER - 10) / 7);
 
   React.useLayoutEffect(() => {
@@ -117,7 +128,7 @@ function CalendarView({
     const dOff = b.dOff || 0;
     const col = isContinuous ? wdToCol[b.day] + (dOff + 1) * 7 : wdToCol[b.day];
     const blockLeft = GUTTER + col * colW + 3;
-    const blockTop = (b.start - GRID_START) / 30 * SLOT;
+    const blockTop = (b.start - GRID_START) / TIME_STEP * SLOT;
     dragInfo.current = {
       id: b.id, mode, dur: b.dur, originalDOff: dOff,
       grabDX: (e.clientX - g.left) - blockLeft,
@@ -143,7 +154,7 @@ function CalendarView({
       const targetDay = displayOrder[ci];
       const targetDOff = isContinuous ? Math.floor(ci / 7) - 1 : 0;
       let slotIx = Math.round(py / SLOT);
-      let start = GRID_START + slotIx * 30;
+      let start = GRID_START + slotIx * TIME_STEP;
       start = Math.max(GRID_START, Math.min(GRID_END - di.dur, start));
       const isClone = e.altKey || di.mode === "clone";
       previewRef.current = { day: targetDay, dOff: targetDOff, start, dur: di.dur, moved, isClone };
@@ -151,17 +162,17 @@ function CalendarView({
     } else if (di.mode === "resize-bottom" || di.mode === "resize") {
       const py = (e.clientY - g.top);
       const b = blocks.find(x => x.id === di.id);
-      const topPx = (b.start - GRID_START) / 30 * SLOT;
+      const topPx = (b.start - GRID_START) / TIME_STEP * SLOT;
       let slots = Math.max(1, Math.round((py - topPx) / SLOT));
-      let dur = Math.min(slots * 30, GRID_END - b.start);
+      let dur = Math.min(slots * TIME_STEP, GRID_END - b.start);
       previewRef.current = { day: b.day, dOff: di.originalDOff, start: b.start, dur, moved, isClone: false };
       setDrag(d => ({ ...d, day: b.day, dOff: di.originalDOff, start: b.start, dur, moved, isClone: false }));
     } else if (di.mode === "resize-top") {
       const py = (e.clientY - g.top);
       const b = blocks.find(x => x.id === di.id);
       let slotIx = Math.round(py / SLOT);
-      let newStart = GRID_START + slotIx * 30;
-      newStart = Math.max(GRID_START, Math.min((b.start + b.dur) - 30, newStart));
+      let newStart = GRID_START + slotIx * TIME_STEP;
+      newStart = Math.max(GRID_START, Math.min((b.start + b.dur) - TIME_STEP, newStart));
       let newDur = (b.start + b.dur) - newStart;
       previewRef.current = { day: b.day, dOff: di.originalDOff, start: newStart, dur: newDur, moved, isClone: false };
       setDrag(d => ({ ...d, day: b.day, dOff: di.originalDOff, start: newStart, dur: newDur, moved, isClone: false }));
@@ -203,7 +214,7 @@ function CalendarView({
     const g = geom();
     const py = (e.clientY - g.top);
     let slotIx = Math.floor(py / SLOT);
-    let start = Math.max(GRID_START, Math.min(GRID_END - 30, GRID_START + slotIx * 30));
+    let start = Math.max(GRID_START, Math.min(GRID_END - TIME_STEP, GRID_START + slotIx * TIME_STEP));
     return { day, start, dOff };
   }
   function emptyClick(e, day, dOff) {
@@ -329,7 +340,7 @@ function CalendarView({
       <div className="cal-scroll" ref={scrollRef} onScroll={(e) => { if (headScrollRef.current) headScrollRef.current.scrollLeft = e.target.scrollLeft; }}>
         <div className="cal-body" ref={bodyRef} style={{ height: totalH }}>
           {hours.map(m => {
-            const top = (m - GRID_START) / 30 * SLOT;
+            const top = (m - GRID_START) / TIME_STEP * SLOT;
             return (
               <React.Fragment key={m}>
                 <div className="cal-hline" style={{ top, left: GUTTER }} />
@@ -355,7 +366,7 @@ function CalendarView({
             if (nowMins < GRID_START || nowMins > GRID_END) return null;
             return (
               <div className="cal-now-line" style={{
-                top: (nowMins - GRID_START) / 30 * SLOT,
+                top: (nowMins - GRID_START) / TIME_STEP * SLOT,
                 left: GUTTER + wdToCol[today] * colW,
                 width: colW,
                 borderTopColor: accent,
@@ -368,7 +379,7 @@ function CalendarView({
           {/* partner overlay ghosts (behind my blocks) */}
           {overlayBlocks && (isContinuous ? overlayBlocks : overlayBlocks.filter(b => (b.dOff || 0) === 0)).map(b => {
             const dOff = b.dOff || 0;
-            const top = (b.start - GRID_START) / 30 * SLOT, height = b.dur / 30 * SLOT;
+            const top = (b.start - GRID_START) / TIME_STEP * SLOT, height = b.dur / TIME_STEP * SLOT;
             const left = GUTTER + (isContinuous ? wdToCol[b.day] + (dOff + 1) * 7 : wdToCol[b.day]) * colW + 3, width = colW - 6;
             return (
               <div key={"g" + b.id} className="cal-ghost"
@@ -382,8 +393,8 @@ function CalendarView({
           {drag && (
             <div className="cal-drop" style={{
               left: GUTTER + (isContinuous ? wdToCol[drag.day] + ((drag.dOff || 0) + 1) * 7 : wdToCol[drag.day]) * colW + 2, width: colW - 4,
-              top: (drag.start - GRID_START) / 30 * SLOT,
-              height: drag.dur / 30 * SLOT, borderColor: accent }} />
+              top: (drag.start - GRID_START) / TIME_STEP * SLOT,
+              height: drag.dur / TIME_STEP * SLOT, borderColor: accent }} />
           )}
 
           {(isContinuous ? blocks : blocks.filter(b => (b.dOff || 0) === 0)).map(b => {
@@ -446,8 +457,8 @@ function Block({ b, colW, SLOT, col, start, dur, style, dragging, readOnly, sele
   const color = b.color || h.color || "#7d8aa0";
   const icon = b.icon || h.icon || "";
   const label = b.label || h.name || "";
-  const top = (start - GRID_START) / 30 * SLOT;
-  const height = dur / 30 * SLOT;
+  const top = (start - GRID_START) / TIME_STEP * SLOT;
+  const height = dur / TIME_STEP * SLOT;
   const left = GUTTER + col * colW + 3, width = colW - 6;
   const tall = height >= SLOT * 2.6, mid = height >= SLOT * 1.4;
   const skipped = b.status === "skipped";
@@ -593,16 +604,28 @@ function CalPicker({ cals, activeCal, onPick, onOpenProfile, accent }) {
 function QuickAdd({ info, onClose, onAdd, onNewHabit, accent }) {
   const { t } = useTranslation();
   const ref = React.useRef(null);
-  React.useEffect(() => {
+  const [pos, setPos] = React.useState({ x: Math.min(info.x, window.innerWidth - 280), y: info.y + 8, opacity: 0 });
+
+  React.useLayoutEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     setTimeout(() => document.addEventListener("pointerdown", h), 0);
     return () => document.removeEventListener("pointerdown", h);
   }, []);
-  const vw = window.innerWidth, x = Math.min(info.x, vw - 280);
+
+  React.useLayoutEffect(() => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      let newY = info.y + 8;
+      if (newY + rect.height > window.innerHeight - 8) {
+        newY = info.y - rect.height - 8;
+      }
+      setPos(p => ({ ...p, y: Math.max(8, newY), opacity: 1 }));
+    }
+  }, [info.y]);
   
   if (HABITS.length === 0) {
     return (
-      <div ref={ref} className="quickadd" style={{ left: x, top: info.y + 8, padding: 15, color: "var(--text)" }}>
+      <div ref={ref} className="quickadd" style={{ left: pos.x, top: pos.y, opacity: pos.opacity, padding: 15, color: "var(--text)" }}>
         <div style={{ marginBottom: 12 }}>{t("cal.qa.noHabits")}</div>
         <button className="qa-add" onClick={onNewHabit} style={{ color: accent, background: "transparent", border: `1px dashed ${hexA(accent, 0.4)}` }}>
           <Icon name="plus" size={15} /> {t("cal.ctx.newHabit")}
@@ -612,7 +635,7 @@ function QuickAdd({ info, onClose, onAdd, onNewHabit, accent }) {
   }
 
   return (
-    <div ref={ref} className="quickadd" style={{ left: x, top: info.y + 8 }}>
+    <div ref={ref} className="quickadd" style={{ left: pos.x, top: pos.y, opacity: pos.opacity }}>
       <div className="qa-time">{min12(info.start)} · {DAYS[info.day]}</div>
       <div className="qa-grid">
         {HABITS.map(h => (
@@ -665,8 +688,18 @@ function ContextMenu({ menu, accent, hasClip, clip, readOnly, onClose, onCopy, o
   const W = 226;
   const H = count * 35 + divs * 11 + 12;
   const vw = window.innerWidth, vh = window.innerHeight;
-  const x = Math.min(menu.x, vw - W - 8);
-  const y = Math.min(menu.y, vh - H - 8);
+  let x = menu.x;
+  let y = menu.y;
+
+  if (y + H > vh - 8) {
+    y = menu.y - H;
+    if (y < 8) y = 8;
+  }
+  
+  if (x + W > vw - 8) {
+    x = menu.x - W;
+    if (x < 8) x = 8;
+  }
 
   return (
     <div className="ctx-backdrop" onPointerDown={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }} onWheel={onClose}>

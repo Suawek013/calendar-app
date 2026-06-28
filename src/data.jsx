@@ -1,9 +1,10 @@
 // data.jsx — mock data, week generation, dashboard history
 // Exposes: HABIT_PALETTE, CATEGORIES, HABITS, DAYS, weekDates, generateWeek,
-//          habitById, historyFor, minToLabel, GRID_START, GRID_END
+//          habitById, historyFor, minToLabel, GRID_START, GRID_END, TIME_STEP
 
 export let GRID_START = 6 * 60;   // 06:00
 export let GRID_END   = 24 * 60;  // 24:00
+export const TIME_STEP = 15;      // granularity for snapping and rendering
 export function setGrid(w, b) { GRID_START = w; GRID_END = b; }
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -16,11 +17,26 @@ const HABIT_PALETTE = [
   "#7d8aa0", "#5fd0a8", "#d9a441", "#6ad0e8",
 ];
 
+try {
+  const savedColors = JSON.parse(localStorage.getItem("cad_colors") || "[]");
+  savedColors.forEach(c => {
+    if (!HABIT_PALETTE.includes(c)) HABIT_PALETTE.push(c);
+  });
+} catch (e) {}
+
 const CATEGORIES = ["Work", "Health", "Personal", "Learning", "Social", "Side project"];
 
 export const HABITS = []; // Będzie zasilane z bazy danych
 export const HABIT_LOGS = []; // Będzie zasilane z bazy danych
 export const CUSTOM_BLOCKS = []; // Dodano: przechowuje zmodyfikowane/niestandardowe bloki
+
+export const EMOJIS = ["💪","🔥","📚","🎓","❤️","🎮","💼","🏃","🧘","🎨","🍳","🌙","☕","🎸","💧","✍️"];
+try {
+  const savedEmojis = JSON.parse(localStorage.getItem("cad_emojis") || "[]");
+  savedEmojis.forEach(e => {
+    if (e && !EMOJIS.includes(e)) EMOJIS.push(e);
+  });
+} catch (e) {}
 
 const habitById = (id) => HABITS.find(h => h.id === id);
 

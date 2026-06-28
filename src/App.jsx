@@ -1,7 +1,7 @@
 // App.jsx — shell, navigation, state, modals, tweaks
 import React from 'react';
 import { Icon } from './components.jsx';
-import { generateWeekFromData, TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, CUSTOM_BLOCKS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12, weekDates } from './data.jsx';
+import { generateWeekFromData, TODAY_INDEX, HABIT_PALETTE, CATEGORIES, HABITS, HABIT_LOGS, CUSTOM_BLOCKS, generateWeek, habitById, CALENDARS, generateSharedWeek, setGrid, setClock, setWeekStart, min12, weekDates, EMOJIS } from './data.jsx';
 import { supabase } from './supabase.js';
 import { useTranslation } from './i18n.jsx';
 import { GOALS_SEED, GOAL_YEAR } from './goals-data.jsx';
@@ -139,7 +139,26 @@ function App() {
       // 5. Pobieramy nawyki (własne i partnerów dzięki RLS)
       const { data: habs } = await supabase.from('habits').select('*');
       if (habs) {
-        habs.forEach(h => { if (typeof h.schedule === 'string') h.schedule = JSON.parse(h.schedule); });
+        let changedPalette = false;
+        let changedEmojis = false;
+        
+        habs.forEach(h => { 
+          if (typeof h.schedule === 'string') h.schedule = JSON.parse(h.schedule); 
+          
+          if (h.color && !HABIT_PALETTE.includes(h.color)) {
+            HABIT_PALETTE.push(h.color);
+            changedPalette = true;
+          }
+          if (h.icon && !EMOJIS.includes(h.icon)) {
+            EMOJIS.push(h.icon);
+            changedEmojis = true;
+          }
+        });
+        
+        try {
+          if (changedPalette) localStorage.setItem("cad_colors", JSON.stringify(HABIT_PALETTE.filter(c => c.startsWith("#"))));
+          if (changedEmojis) localStorage.setItem("cad_emojis", JSON.stringify(EMOJIS.filter(e => e.length > 0)));
+        } catch(e) {}
         
         HABITS.length = 0;
         HABITS.push(...habs.filter(h => h.user_id === userId));
